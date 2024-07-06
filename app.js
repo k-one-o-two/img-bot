@@ -2,6 +2,8 @@
 const TelegramBot = require('node-telegram-bot-api');
 const express = require('express');
 
+const app = express();
+
 app.get('/', function (req, res) {
   res.send('Hello World');
 });
