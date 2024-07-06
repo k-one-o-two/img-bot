@@ -44,7 +44,7 @@ bot.on('message', (msg) => {
   if (isAdminGroupMessage && msg.text === confirmMessage) {
     const original = msg.reply_to_message;
     if (!original) {
-      bot.sendMessage(chatId, 'no origin, sorry');
+      bot.sendMessage(chatId, 'No origin, sorry');
       return;
     }
     bot.forwardMessage(nerdsbayPhoto, msg.chat.id, original.message_id);
