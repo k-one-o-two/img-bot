@@ -11,6 +11,7 @@ const bot = new TelegramBot(token, { polling: true });
 const chatsArray: { chat_id: number; message_id: number }[] = [];
 
 bot.on('photo', (msg) => {
+  console.log('got image');
   const chatId = msg.chat.id;
 
   bot.sendMessage(
