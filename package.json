@@ -1,0 +1,29 @@
+{
+  "name": "img-bot",
+  "version": "0.0.1",
+  "description": "",
+  "main": "app.ts",
+  "scripts": {
+    "dev": "nodemon --verbose --exec ts-node --files app.ts",
+    "build": "tsc -p . ",
+    "start": "node dist/app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/k-one-o-two/img-bot.git"
+  },
+  "author": "k102",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/k-one-o-two/img-bot/issues"
+  },
+  "homepage": "https://github.com/k-one-o-two/img-bot#readme",
+  "dependencies": {
+    "node-telegram-bot-api": "^0.66.0",
+    "nodemon": "^3.1.4"
+  },
+  "devDependencies": {
+    "@types/node-telegram-bot-api": "^0.64.7",
+    "ts-node": "^10.9.2"
+  }
+}
