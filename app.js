@@ -1,5 +1,12 @@
 // https://t.me/image_accept_bot
 const TelegramBot = require('node-telegram-bot-api');
+const express = require('express');
+
+app.get('/', function (req, res) {
+  res.send('Hello World');
+});
+
+app.listen(3000);
 
 const token = '7344765885:AAFqnAotFzxc-jevztuBrrbZrSab1qajtbM';
 const nerdsbayPhotoAdmins = -4226153478;
