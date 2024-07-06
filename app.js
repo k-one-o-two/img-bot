@@ -25,7 +25,7 @@ bot.on('photo', (msg) => {
 
   bot.sendMessage(
     chatId,
-    `thanks, I've got your image and forwarded it for approval`,
+    `Thanks, I've got your image and forwarded it for approval`,
   );
 
   chatsArray.push({
