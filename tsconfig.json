@@ -10,11 +10,32 @@
     "outDir": "./dist",
     "baseUrl": ".",
     "paths": {
-      "*": ["node_modules/*"]
+      "*": [
+        "node_modules/*"
+      ]
     },
-    "types": ["node"],
-    "typeRoots": ["./node_modules/@types"]
+    "types": [
+      "node"
+    ],
+    "typeRoots": [
+      "./node_modules/@types"
+    ],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "noEmit": true,
+    "incremental": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve"
   },
-  "include": ["app.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "app.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
