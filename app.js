@@ -1,16 +1,14 @@
 // https://t.me/image_accept_bot
-import TelegramBot from 'node-telegram-bot-api';
-import express from 'express';
+const TelegramBot = require('node-telegram-bot-api');
 
 const token = '7344765885:AAFqnAotFzxc-jevztuBrrbZrSab1qajtbM';
 const nerdsbayPhotoAdmins = -4226153478;
 const nerdsbayPhoto = '@nerdsbayPhoto';
 const confirmMessage = 'ok';
-const port = process.env.PORT || 80;
 
 const bot = new TelegramBot(token, { polling: true });
 
-const chatsArray: { chat_id: number; message_id: number }[] = [];
+const chatsArray = [];
 
 bot.on('photo', (msg) => {
   console.log('got image');
@@ -42,14 +40,4 @@ bot.on('message', (msg) => {
     }
     bot.forwardMessage(nerdsbayPhoto, msg.chat.id, original.message_id);
   }
-});
-
-const app = express();
-
-app.get('/', (req, res) => {
-  res.send('hi');
-});
-
-app.listen(port, () => {
-  console.log(`Express server is listening on ${port}`);
 });

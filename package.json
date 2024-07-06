@@ -4,9 +4,7 @@
   "description": "",
   "main": "app.ts",
   "scripts": {
-    "dev": "nodemon --verbose --exec ts-node --files app.ts",
-    "build": "tsc -p . ",
-    "start": "node dist/app.js"
+    "start": "node app.js"
   },
   "repository": {
     "type": "git",
