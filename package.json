@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/k-one-o-two/img-bot#readme",
   "dependencies": {
+    "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "node-telegram-bot-api": "^0.66.0",
     "nodemon": "^3.1.4"
