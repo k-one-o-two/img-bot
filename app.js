@@ -16,8 +16,8 @@ app.get('/', function (req, res) {
 
 app.listen(3002);
 
-const token = process.env.TOKEN; // '7344765885:AAFqnAotFzxc-jevztuBrrbZrSab1qajtbM';
-const nerdsbayPhotoAdmins = process.env.ADMIN_GROUP_ID; // -4226153478;
+const token = process.env.TOKEN;
+const nerdsbayPhotoAdmins = process.env.ADMIN_GROUP_ID;
 const nerdsbayPhoto = process.env.PHOTO_CHANNEL;
 const confirmMessage = 'ok';
 
