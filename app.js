@@ -27,6 +27,33 @@ const chatsArray = [];
 const approvedArray = [];
 const rejectedArray = [];
 
+const getUserByFile = (fileId) =>
+  chatsArray.find((item) => item.file === fileId);
+
+const checkMessage = (msg) => {
+  const chatId = msg.chat.id;
+  const original = msg.reply_to_message;
+
+  if (!original) {
+    bot.sendMessage(chatId, 'Не найдено оригинальное сообщение');
+    return false;
+  }
+
+  const fileId = original.photo[0].file_unique_id;
+
+  if (approvedArray.includes(fileId)) {
+    bot.sendMessage(chatId, 'Эта фотография уже была принята');
+    return false;
+  }
+
+  if (rejectedArray.includes(fileId)) {
+    bot.sendMessage(chatId, 'Эта фотография уже была отклонена');
+    return false;
+  }
+
+  return true;
+};
+
 bot.on('photo', (msg) => {
   const chatId = msg.chat.id;
 
@@ -41,34 +68,21 @@ bot.on('photo', (msg) => {
 });
 
 bot.on('message', (msg) => {
-  const chatId = msg.chat.id;
-
   const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
 
   if (isAdminGroupMessage && msg.text === confirmMessage) {
+    if (!checkMessage(msg)) {
+      console.error('error processing message', msg);
+      return;
+    }
+
     const original = msg.reply_to_message;
-
-    if (!original) {
-      bot.sendMessage(chatId, 'Не найдено оригинальное сообщение');
-      return;
-    }
-
     const fileId = original.photo[0].file_unique_id;
-
-    if (approvedArray.includes(fileId)) {
-      bot.sendMessage(chatId, 'Эта фотография уже была принята');
-      return;
-    }
-
-    if (rejectedArray.includes(fileId)) {
-      bot.sendMessage(chatId, 'Эта фотография уже была отклонена');
-      return;
-    }
 
     bot.forwardMessage(nerdsbayPhoto, msg.chat.id, original.message_id);
     approvedArray.push(fileId);
 
-    const savedUser = chatsArray.find((item) => item.file === fileId);
+    const savedUser = getUserByFile(fileId);
     if (savedUser) {
       bot.sendMessage(savedUser.user, 'Фотография была принята!');
     }
@@ -76,39 +90,21 @@ bot.on('message', (msg) => {
 });
 
 bot.onText(/no (.+)/, (msg, match) => {
-  const chatId = msg.chat.id;
-  const original = msg.reply_to_message;
-  if (!original) {
-    bot.sendMessage(chatId, 'No origin, sorry');
-    return;
-  }
-
   const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
 
   const resp = match[1]; // the captured "reason"
   if (isAdminGroupMessage) {
+    if (!checkMessage(msg)) {
+      console.error('error processing message', msg);
+      return;
+    }
+
     const original = msg.reply_to_message;
-
-    if (!original) {
-      bot.sendMessage(chatId, 'Не найдено оригинальное сообщение');
-      return;
-    }
-
     const fileId = original.photo[0].file_unique_id;
-
-    if (approvedArray.includes(fileId)) {
-      bot.sendMessage(chatId, 'Эта фотография уже была принята');
-      return;
-    }
-
-    if (rejectedArray.includes(fileId)) {
-      bot.sendMessage(chatId, 'Эта фотография уже была отклонена');
-      return;
-    }
 
     rejectedArray.push(fileId);
 
-    const savedUser = chatsArray.find((item) => item.file === fileId);
+    const savedUser = getUserByFile(fileId);
     if (savedUser) {
       bot.sendMessage(
         savedUser.user,
