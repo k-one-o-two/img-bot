@@ -135,3 +135,6 @@ dist
 # custom
 migrate.js
 webp.ts
+orcl
+orcl.pub
+mydb/

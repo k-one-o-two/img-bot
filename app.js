@@ -4,17 +4,11 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const TelegramBot = require('node-telegram-bot-api');
-const express = require('express');
 
-const app = express();
+const locallydb = require('locallydb');
+const db = new locallydb('./mydb');
 
 const logObject = (obj) => console.log(JSON.stringify(obj, undefined, 2));
-
-app.get('/', function (req, res) {
-  res.send('Hello World');
-});
-
-app.listen(3002);
 
 const token = process.env.TOKEN;
 const nerdsbayPhotoAdmins = process.env.ADMIN_GROUP_ID;
@@ -23,12 +17,18 @@ const confirmMessage = 'ok';
 
 const bot = new TelegramBot(token, { polling: true });
 
-const chatsArray = [];
-const approvedArray = [];
-const rejectedArray = [];
+const chatsArray = db.collection('chatsArray');
+const approvedArray = db.collection('approvedArray');
+const rejectedArray = db.collection('rejectedArray');
 
-const getUserByFile = (fileId) =>
-  chatsArray.find((item) => item.file === fileId);
+const getUserByFile = (fileId) => {
+  const list = chatsArray.where({ fileId });
+  if (list.length() === 0) {
+    return null;
+  }
+
+  return list.items[0];
+};
 
 const checkMessage = (msg) => {
   const chatId = msg.chat.id;
@@ -40,13 +40,12 @@ const checkMessage = (msg) => {
   }
 
   const fileId = original.photo[0].file_unique_id;
-
-  if (approvedArray.includes(fileId)) {
+  if (approvedArray.where({ fileId }).length()) {
     bot.sendMessage(chatId, 'Эта фотография уже была принята');
-    return false;
+    // return false;
   }
 
-  if (rejectedArray.includes(fileId)) {
+  if (rejectedArray.where({ fileId }).length()) {
     bot.sendMessage(chatId, 'Эта фотография уже была отклонена');
     return false;
   }
@@ -57,11 +56,16 @@ const checkMessage = (msg) => {
 bot.on('photo', (msg) => {
   const chatId = msg.chat.id;
 
-  bot.sendMessage(chatId, `Я получил фотографию и отправил её на рассмотрение`);
+  bot.sendMessage(
+    chatId,
+    `Я получил фотографию и отправил её на рассмотрение`,
+    { reply_to_message_id: msg.message_id },
+  );
 
-  chatsArray.push({
+  chatsArray.insert({
     user: chatId,
-    file: msg.photo[0].file_unique_id,
+    fileId: msg.photo[0].file_unique_id,
+    msgId: msg.message_id,
   });
 
   bot.forwardMessage(nerdsbayPhotoAdmins, msg.chat.id, msg.message_id);
@@ -72,7 +76,6 @@ bot.on('message', (msg) => {
 
   if (isAdminGroupMessage && msg.text === confirmMessage) {
     if (!checkMessage(msg)) {
-      console.error('error processing message', msg);
       return;
     }
 
@@ -80,11 +83,13 @@ bot.on('message', (msg) => {
     const fileId = original.photo[0].file_unique_id;
 
     bot.forwardMessage(nerdsbayPhoto, msg.chat.id, original.message_id);
-    approvedArray.push(fileId);
+    approvedArray.insert({ fileId });
 
     const savedUser = getUserByFile(fileId);
     if (savedUser) {
-      bot.sendMessage(savedUser.user, 'Фотография была принята!');
+      bot.sendMessage(savedUser.user, 'Фотография была принята!', {
+        reply_to_message_id: savedUser.msgId,
+      });
     }
   }
 });
@@ -95,20 +100,21 @@ bot.onText(/no (.+)/, (msg, match) => {
   const resp = match[1]; // the captured "reason"
   if (isAdminGroupMessage) {
     if (!checkMessage(msg)) {
-      console.error('error processing message', msg);
       return;
     }
 
     const original = msg.reply_to_message;
     const fileId = original.photo[0].file_unique_id;
 
-    rejectedArray.push(fileId);
+    rejectedArray.insert({ fileId });
 
     const savedUser = getUserByFile(fileId);
+    console.info({ savedUser });
     if (savedUser) {
       bot.sendMessage(
         savedUser.user,
         `Фотография была отклонена по причине "${resp}"`,
+        { reply_to_message_id: savedUser.msgId },
       );
     }
   }
