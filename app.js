@@ -17,6 +17,14 @@ const confirmMessage = 'ok';
 
 const bot = new TelegramBot(token, { polling: true });
 
+bot.setMyCommands({
+  command: 'start',
+  description: `Привет, я бот для отправки авторских фотографий в канал https://t.me/nerdsbayPhoto
+  Просто отправьте мне фотографию и я её передам админам.
+  Я сообщу когда фотографию примут или отклонят.
+  Пожалуйста, отправляйте только свои фотографии, указывайте место и время съемки для контекста.`,
+});
+
 const chatsArray = db.collection('chatsArray');
 const approvedArray = db.collection('approvedArray');
 const rejectedArray = db.collection('rejectedArray');
@@ -87,7 +95,7 @@ bot.on('message', (msg) => {
 
     const savedUser = getUserByFile(fileId);
     if (savedUser) {
-      bot.sendMessage(savedUser.user, 'Фотография была принята!', {
+      bot.sendMessage(savedUser.user, 'Фотография опубликована!', {
         reply_to_message_id: savedUser.msgId,
       });
     }
@@ -113,7 +121,7 @@ bot.onText(/no (.+)/, (msg, match) => {
     if (savedUser) {
       bot.sendMessage(
         savedUser.user,
-        `Фотография была отклонена по причине "${resp}"`,
+        `Фотография не опубликована, причина: "${resp}"`,
         { reply_to_message_id: savedUser.msgId },
       );
     }
