@@ -50,7 +50,7 @@ const checkMessage = (msg) => {
   const fileId = original.photo[0].file_unique_id;
   if (approvedArray.where({ fileId }).length()) {
     bot.sendMessage(chatId, 'Эта фотография уже была принята');
-    // return false;
+    return false;
   }
 
   if (rejectedArray.where({ fileId }).length()) {
