@@ -84,7 +84,11 @@ bot.on('photo', (msg) => {
     msgId: msg.message_id,
   });
 
-  bot.forwardMessage(nerdsbayPhotoAdmins, msg.chat.id, msg.message_id);
+  try {
+    bot.forwardMessage(nerdsbayPhotoAdmins, msg.chat.id, msg.message_id);
+  } catch (e) {
+    console.log('forward failed: ', e);
+  }
 });
 
 bot.on('video', (msg) => {
@@ -100,7 +104,11 @@ bot.on('video', (msg) => {
     msgId: msg.message_id,
   });
 
-  bot.forwardMessage(nerdsbayPhotoAdmins, msg.chat.id, msg.message_id);
+  try {
+    bot.forwardMessage(nerdsbayPhotoAdmins, msg.chat.id, msg.message_id);
+  } catch {
+    console.log('forward failed: ', e);
+  }
 });
 
 // confirm
@@ -115,14 +123,22 @@ bot.on('message', (msg) => {
     const original = msg.reply_to_message;
     const fileId = getFileId(original);
 
-    bot.forwardMessage(nerdsbayPhoto, msg.chat.id, original.message_id);
+    try {
+      bot.forwardMessage(nerdsbayPhoto, msg.chat.id, original.message_id);
+    } catch (e) {
+      console.log('forward failed: ', e);
+    }
     approvedArray.insert({ fileId });
 
     const savedUser = getUserByFile(fileId);
     if (savedUser) {
-      bot.sendMessage(savedUser.user, 'Материал опубликован!', {
-        reply_to_message_id: savedUser.msgId,
-      });
+      try {
+        bot.sendMessage(savedUser.user, 'Материал опубликован!', {
+          reply_to_message_id: savedUser.msgId,
+        });
+      } catch (e) {
+        console.log('replying to user failed: ', e);
+      }
     }
   }
 });
@@ -145,11 +161,15 @@ bot.onText(/no (.+)/, (msg, match) => {
     const savedUser = getUserByFile(fileId);
 
     if (savedUser) {
-      bot.sendMessage(
-        savedUser.user,
-        `Материал не опубликован, причина: "${resp}"`,
-        { reply_to_message_id: savedUser.msgId },
-      );
+      try {
+        bot.sendMessage(
+          savedUser.user,
+          `Материал не опубликован, причина: "${resp}"`,
+          { reply_to_message_id: savedUser.msgId },
+        );
+      } catch (e) {
+        console.log('replying to user failed: ', e);
+      }
     }
   }
 });
