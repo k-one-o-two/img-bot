@@ -17,6 +17,8 @@ const confirmMessage = 'ok';
 
 const bot = new TelegramBot(token, { polling: true });
 
+console.log(new Date().toString(), ' BOT started');
+
 const chatsArray = db.collection('chatsArray');
 const approvedArray = db.collection('approvedArray');
 const rejectedArray = db.collection('rejectedArray');
@@ -70,6 +72,7 @@ const checkMessage = (msg) => {
 };
 
 bot.on('photo', (msg) => {
+  console.log(new Date().toString(), ' BOT got photo');
   const chatId = msg.chat.id;
 
   bot.sendMessage(
@@ -92,6 +95,7 @@ bot.on('photo', (msg) => {
 });
 
 bot.on('video', (msg) => {
+  console.log(new Date().toString(), ' BOT got vide');
   const chatId = msg.chat.id;
 
   bot.sendMessage(chatId, `Я получил видео и отправил его на рассмотрение`, {
@@ -113,6 +117,7 @@ bot.on('video', (msg) => {
 
 // confirm
 bot.on('message', (msg) => {
+  console.log(new Date().toString(), ' BOT got message');
   const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
 
   if (isAdminGroupMessage && msg.text === confirmMessage) {
@@ -145,6 +150,7 @@ bot.on('message', (msg) => {
 
 // reject
 bot.onText(/no (.+)/, (msg, match) => {
+  console.log(new Date().toString(), ' BOT got reject text');
   const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
 
   const resp = match[1]; // the captured "reason"
