@@ -16,6 +16,7 @@ const nerdsbayPhoto = process.env.PHOTO_CHANNEL;
 const confirmMessage = 'ok';
 
 const bot = new TelegramBot(token, { polling: true });
+bot.startPolling();
 
 console.log(new Date().toString(), ' BOT started');
 
