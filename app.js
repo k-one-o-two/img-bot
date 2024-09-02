@@ -116,11 +116,12 @@ bot.on('video', (msg) => {
 });
 
 // confirm
-bot.on('message', (msg) => {
+bot.onText(/ok (.+)/, (msg, match) => {
   console.log(new Date().toString(), ' BOT got message');
   const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
+  const comment = match[1]; // the captured "comment"
 
-  if (isAdminGroupMessage && msg.text === confirmMessage) {
+  if (isAdminGroupMessage) {
     if (!checkMessage(msg)) {
       return;
     }
@@ -138,9 +139,13 @@ bot.on('message', (msg) => {
     const savedUser = getUserByFile(fileId);
     if (savedUser) {
       try {
-        bot.sendMessage(savedUser.user, 'Материал опубликован!', {
-          reply_to_message_id: savedUser.msgId,
-        });
+        bot.sendMessage(
+          savedUser.user,
+          `Материал опубликован! ${comment ? `Комментарий: "${comment}"` : ''}`,
+          {
+            reply_to_message_id: savedUser.msgId,
+          },
+        );
       } catch (e) {
         console.log('replying to user failed: ', e);
       }
