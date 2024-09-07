@@ -122,9 +122,9 @@ bot.onText(/ok (.+)/, (msg, match) => {
   const comment = match[1]; // the captured "comment"
 
   if (isAdminGroupMessage) {
-    if (!checkMessage(msg)) {
-      return;
-    }
+    // if (!checkMessage(msg)) {
+    //   return;
+    // }
 
     const original = msg.reply_to_message;
     const fileId = getFileId(original);
