@@ -72,6 +72,11 @@ const checkMessage = (msg) => {
 };
 
 bot.on('photo', (msg) => {
+  const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
+  if (isAdminGroupMessage) {
+    return;
+  }
+
   console.log(new Date().toString(), ' BOT got photo');
   const chatId = msg.chat.id;
 
@@ -95,6 +100,11 @@ bot.on('photo', (msg) => {
 });
 
 bot.on('video', (msg) => {
+  const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
+  if (isAdminGroupMessage) {
+    return;
+  }
+
   console.log(new Date().toString(), ' BOT got vide');
   const chatId = msg.chat.id;
 
