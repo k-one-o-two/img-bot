@@ -3,6 +3,10 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
+const fs = require('fs');
+const { writeFile } = require('node:fs/promises');
+const { Readable } = require('node:stream');
+
 const TelegramBot = require('node-telegram-bot-api');
 
 const locallydb = require('locallydb');
@@ -23,7 +27,41 @@ const chatsArray = db.collection('chatsArray');
 const approvedArray = db.collection('approvedArray');
 const rejectedArray = db.collection('rejectedArray');
 
+const bestOf24Array = db.collection('bestOf24Array');
+const votedList = db.collection('votedList');
+
 bot.on('polling_error', console.log);
+
+const getFileInfo = async (file_id) => {
+  const url = `https://api.telegram.org/bot${token}/getFile?file_id=${file_id}`;
+
+  const result = await fetch(url);
+  const fileData = await result.json();
+
+  return fileData;
+};
+
+const downloadFile = async (file_path, chatId) => {
+  const url = `https://api.telegram.org/file/bot${token}/${file_path}`;
+  const fileName = file_path.replaceAll('/', '_');
+
+  const response = await fetch(url);
+  const stream = Readable.fromWeb(response.body);
+  const result = await writeFile(`./24/${chatId}_${fileName}`, stream);
+
+  return result;
+};
+
+const userHasVoted = (msg) => {
+  const user = msg.from.id;
+  const foundInCollection = votedList.where({ user_id: user }).items;
+
+  if (foundInCollection.length) {
+    return true;
+  }
+
+  return false;
+};
 
 const getUserByFile = (fileId) => {
   const list = chatsArray.where({ fileId });
@@ -77,25 +115,71 @@ bot.on('photo', (msg) => {
     return;
   }
 
-  console.log(new Date().toString(), ' BOT got photo');
   const chatId = msg.chat.id;
 
-  bot.sendMessage(
-    chatId,
-    `Я получил фотографию и отправил её на рассмотрение`,
-    { reply_to_message_id: msg.message_id },
-  );
+  if (msg.caption === '#24best') {
+    // contest photo
 
-  chatsArray.insert({
-    user: chatId,
-    fileId: msg.photo[0].file_unique_id,
-    msgId: msg.message_id,
-  });
+    console.log(new Date().toString(), ' BOT got photo for contest');
 
-  try {
-    bot.forwardMessage(nerdsbayPhotoAdmins, msg.chat.id, msg.message_id);
-  } catch (e) {
-    console.log('forward failed: ', e);
+    const fileId = msg.photo[msg.photo.length - 1].file_id;
+    const fileUniqueId = msg.photo[0].file_unique_id;
+
+    const userContestEntry = bestOf24Array.where({ user: msg.from.id }).items;
+
+    if (userContestEntry.length) {
+      bot.sendMessage(
+        chatId,
+        `На конкурс можно отправить только одну фотографию`,
+        {
+          reply_to_message_id: msg.message_id,
+        },
+      );
+    } else {
+      getFileInfo(fileId).then((data) => {
+        console.log('got file');
+        if (data.ok) {
+          downloadFile(data.result.file_path, chatId).then(() => {
+            console.info('saved');
+
+            bestOf24Array.insert({
+              user: msg.from.id,
+              first_name: msg.from.first_name,
+              username: msg.from.username,
+              msgId: msg.message_id,
+              file: `${chatId}_${data.result.file_path.replaceAll('/', '_')}`,
+              fileId: fileUniqueId,
+              votes: 0,
+            });
+          });
+        }
+      });
+      bot.sendMessage(chatId, `Я получил фотографию на конкурс, удачи!`, {
+        reply_to_message_id: msg.message_id,
+      });
+    }
+  } else {
+    // normal photo
+
+    console.log(new Date().toString(), ' BOT got photo');
+
+    bot.sendMessage(
+      chatId,
+      `Я получил фотографию и отправил её на рассмотрение`,
+      { reply_to_message_id: msg.message_id },
+    );
+
+    chatsArray.insert({
+      user: chatId,
+      fileId: msg.photo[0].file_unique_id,
+      msgId: msg.message_id,
+    });
+
+    try {
+      bot.forwardMessage(nerdsbayPhotoAdmins, msg.chat.id, msg.message_id);
+    } catch (e) {
+      console.log('forward failed: ', e);
+    }
   }
 });
 
@@ -193,4 +277,80 @@ bot.onText(/no (.+)/, (msg, match) => {
       }
     }
   }
+});
+
+bot.onText(/#bestOf24/, (msg) => {
+  const entries = bestOf24Array.items;
+
+  const chatId = msg.chat.id;
+  bot.sendMessage(
+    chatId,
+    `Сейчас я отправлю присланные на конкурс фотографии.`,
+    {
+      reply_to_message_id: msg.message_id,
+    },
+  );
+
+  entries
+    .sort((iA, iB) => iB.cid - iA.cid)
+    .forEach((entry) => {
+      const buffer = fs.readFileSync(`./24/${entry.file}`);
+      bot.sendPhoto(chatId, buffer, {
+        caption: `#${entry.cid}`,
+      });
+    });
+
+  if (userHasVoted(msg)) {
+    bot.sendMessage(chatId, `Твой голос уже записан`, {
+      reply_to_message_id: msg.message_id,
+    });
+  } else {
+    bot.sendMessage(
+      chatId,
+      `Чтобы отдать свой голос, ответь на сообщение с понравившейся фотографией текстом vote`,
+      {
+        reply_to_message_id: msg.message_id,
+      },
+    );
+  }
+});
+
+bot.onText(/vote/, (msg) => {
+  const chatId = msg.chat.id;
+
+  if (userHasVoted(msg)) {
+    bot.sendMessage(chatId, `Голосовать можно только один раз`, {
+      reply_to_message_id: msg.message_id,
+    });
+    return;
+  }
+
+  const original = msg.reply_to_message;
+  const cid = Number(original.caption.replace('#', ''));
+  const user = msg.from.id;
+
+  const itemToVote = bestOf24Array.get(cid);
+
+  if (!itemToVote) {
+    return;
+  }
+
+  if (itemToVote.user === user) {
+    bot.sendMessage(chatId, `Нельзя голосовать за свою фотографию`, {
+      reply_to_message_id: msg.message_id,
+    });
+
+    return;
+  }
+
+  bestOf24Array.update(cid, {
+    votes: Number(itemToVote.votes) + 1,
+  });
+  votedList.insert({
+    user_id: user,
+  });
+
+  bot.sendMessage(chatId, `Спасибо, твой голос учтен`, {
+    reply_to_message_id: msg.message_id,
+  });
 });
