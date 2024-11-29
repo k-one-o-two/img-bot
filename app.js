@@ -420,7 +420,7 @@ bot.onText(/^get_winners$/, (msg) => {
   const entries = bestOf24Array.items;
 
   entries
-    .sort((a, b) => a.votes - b.votes)
+    .sort((a, b) => b.votes - a.votes)
     .forEach((entry) => {
       const buffer = fs.readFileSync(`./24/${entry.file}`);
       bot.sendPhoto(chatId, buffer, {
