@@ -32,6 +32,10 @@ const votedList = db.collection('votedList');
 
 bot.on('polling_error', console.log);
 
+// contest dates
+const contestAcceptEnds = new Date('2024-12-22T20:00:00.000Z'); // 22 декабря, 22:00 UTC+2
+const voteStartDate = new Date('2024-12-23T07:00:00.000Z'); // 23 декабря, 9:00
+
 const getFileInfo = async (file_id) => {
   const url = `https://api.telegram.org/bot${token}/getFile?file_id=${file_id}`;
 
@@ -119,6 +123,16 @@ bot.on('photo', (msg) => {
 
   if (msg.caption === '#24best') {
     // contest photo
+
+    const now = new Date();
+
+    if (now >= contestAcceptEnds) {
+      bot.sendMessage(chatId, `Прием фотографий уже закончен закончен`, {
+        reply_to_message_id: msg.message_id,
+      });
+
+      return;
+    }
 
     console.log(new Date().toString(), ' BOT got photo for contest');
 
@@ -210,7 +224,7 @@ bot.on('video', (msg) => {
 });
 
 // confirm
-bot.onText(/ok\s?(.*)/, (msg, match) => {
+bot.onText(/^ok\s?(.*)/, (msg, match) => {
   console.log(new Date().toString(), ' BOT got message');
   const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
   const comment = match[1]; // the captured "comment"
@@ -248,7 +262,7 @@ bot.onText(/ok\s?(.*)/, (msg, match) => {
 });
 
 // reject
-bot.onText(/no (.+)/, (msg, match) => {
+bot.onText(/^no (.+)/, (msg, match) => {
   console.log(new Date().toString(), ' BOT got reject text');
   const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
 
@@ -279,10 +293,25 @@ bot.onText(/no (.+)/, (msg, match) => {
   }
 });
 
-bot.onText(/#bestOf24/, (msg) => {
+bot.onText(/^#bestOf24$/, (msg) => {
   const entries = bestOf24Array.items;
 
   const chatId = msg.chat.id;
+
+  const now = new Date();
+
+  if (now < voteStartDate) {
+    bot.sendMessage(
+      chatId,
+      `Подождите, голосование начнется ${voteStartDate.toLocaleDateString()} ${voteStartDate.toLocaleTimeString()}`,
+      {
+        reply_to_message_id: msg.message_id,
+      },
+    );
+
+    return;
+  }
+
   bot.sendMessage(
     chatId,
     `Сейчас я отправлю присланные на конкурс фотографии.`,
@@ -292,7 +321,7 @@ bot.onText(/#bestOf24/, (msg) => {
   );
 
   entries
-    .sort((iA, iB) => iB.cid - iA.cid)
+    .sort(() => Math.random() - 0.5) // random sort
     .forEach((entry) => {
       const buffer = fs.readFileSync(`./24/${entry.file}`);
       bot.sendPhoto(chatId, buffer, {
@@ -315,8 +344,22 @@ bot.onText(/#bestOf24/, (msg) => {
   }
 });
 
-bot.onText(/vote/, (msg) => {
+bot.onText(/^vote$/, (msg) => {
   const chatId = msg.chat.id;
+
+  const now = new Date();
+
+  if (now < voteStartDate) {
+    bot.sendMessage(
+      chatId,
+      `Подождите, голосование начнется ${voteStartDate.toLocaleDateString()} ${voteStartDate.toLocaleTimeString()}`,
+      {
+        reply_to_message_id: msg.message_id,
+      },
+    );
+
+    return;
+  }
 
   if (userHasVoted(msg)) {
     bot.sendMessage(chatId, `Голосовать можно только один раз`, {
@@ -353,4 +396,26 @@ bot.onText(/vote/, (msg) => {
   bot.sendMessage(chatId, `Спасибо, твой голос учтен`, {
     reply_to_message_id: msg.message_id,
   });
+});
+
+bot.onText(/^get_winners$/, (msg) => {
+  console.log(new Date().toString(), ' BOT got message');
+  const chatId = msg.chat.id;
+  const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
+
+  if (!isAdminGroupMessage) {
+    return;
+  }
+
+  const entries = bestOf24Array.items;
+
+  entries
+    .sort((a, b) => a.votes - b.votes)
+    .forEach((entry) => {
+      const buffer = fs.readFileSync(`./24/${entry.file}`);
+      bot.sendPhoto(chatId, buffer, {
+        caption: `#${entry.cid} votes: ${entry.votes}, author: ${entry.first_name} (@${entry.username})`,
+      });
+    });
+  // }
 });
