@@ -34,7 +34,7 @@ bot.on('polling_error', console.log);
 
 // contest dates
 const contestAcceptEnds = new Date('2024-12-22T20:00:00.000Z'); // 22 декабря, 22:00 UTC+2
-const voteStartDate = new Date('2024-12-23T07:00:00.000Z'); // 23 декабря, 9:00
+const voteStartDate = new Date('2024-11-23T07:00:00.000Z'); // 23 декабря, 9:00
 
 const getFileInfo = async (file_id) => {
   const url = `https://api.telegram.org/bot${token}/getFile?file_id=${file_id}`;
@@ -127,9 +127,15 @@ bot.on('photo', (msg) => {
     const now = new Date();
 
     if (now >= contestAcceptEnds) {
-      bot.sendMessage(chatId, `Прием фотографий уже закончен закончен`, {
-        reply_to_message_id: msg.message_id,
-      });
+      bot.sendMessage(
+        chatId,
+        `Прием фотографий уже закончен закончен (${contestAcceptEnds.toLocaleDateString(
+          'ru',
+        )})`,
+        {
+          reply_to_message_id: msg.message_id,
+        },
+      );
 
       return;
     }
@@ -303,7 +309,9 @@ bot.onText(/^#bestOf24$/, (msg) => {
   if (now < voteStartDate) {
     bot.sendMessage(
       chatId,
-      `Подождите, голосование начнется ${voteStartDate.toLocaleDateString()} ${voteStartDate.toLocaleTimeString()}`,
+      `Подождите, голосование начнется ${voteStartDate.toLocaleDateString(
+        'ru',
+      )} ${voteStartDate.toLocaleTimeString('ru')}`,
       {
         reply_to_message_id: msg.message_id,
       },
@@ -352,7 +360,9 @@ bot.onText(/^vote$/, (msg) => {
   if (now < voteStartDate) {
     bot.sendMessage(
       chatId,
-      `Подождите, голосование начнется ${voteStartDate.toLocaleDateString()} ${voteStartDate.toLocaleTimeString()}`,
+      `Подождите, голосование начнется ${voteStartDate.toLocaleDateString(
+        'ru',
+      )} ${voteStartDate.toLocaleTimeString('ru')}`,
       {
         reply_to_message_id: msg.message_id,
       },
