@@ -157,11 +157,8 @@ bot.on('photo', (msg) => {
       );
     } else {
       getFileInfo(fileId).then((data) => {
-        console.log('got file');
         if (data.ok) {
           downloadFile(data.result.file_path, chatId).then(() => {
-            console.info('saved');
-
             bestOf24Array.insert({
               user: msg.from.id,
               first_name: msg.from.first_name,
@@ -304,6 +301,18 @@ bot.onText(/^#bestOf24$/, (msg) => {
 
   const chatId = msg.chat.id;
 
+  if (msg.chat.type !== 'private') {
+    bot.sendMessage(
+      chatId,
+      `Эта команда доступна только в личных сообщениях с ботом`,
+      {
+        reply_to_message_id: msg.message_id,
+      },
+    );
+
+    return;
+  }
+
   const now = new Date();
 
   if (now < voteStartDate) {
@@ -355,6 +364,18 @@ bot.onText(/^#bestOf24$/, (msg) => {
 bot.onText(/^vote$/, (msg) => {
   const chatId = msg.chat.id;
 
+  if (msg.chat.type !== 'private') {
+    bot.sendMessage(
+      chatId,
+      `Эта команда доступна только в личных сообщениях с ботом`,
+      {
+        reply_to_message_id: msg.message_id,
+      },
+    );
+
+    return;
+  }
+
   const now = new Date();
 
   if (now < voteStartDate) {
@@ -379,7 +400,7 @@ bot.onText(/^vote$/, (msg) => {
   }
 
   const original = msg.reply_to_message;
-  const cid = Number(original.caption.replace('#', ''));
+  const cid = Number(/(#\d+)/.exec(original.caption)[0].replace('#', ''));
   const user = msg.from.id;
 
   const itemToVote = bestOf24Array.get(cid);
