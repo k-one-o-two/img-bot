@@ -444,9 +444,11 @@ bot.onText(/^get_winners$/, (msg) => {
     .sort((a, b) => b.votes - a.votes)
     .forEach((entry) => {
       const buffer = fs.readFileSync(`./24/${entry.file}`);
-      bot.sendPhoto(chatId, buffer, {
-        caption: `#${entry.cid} votes: ${entry.votes}, author: ${entry.first_name} (@${entry.username})`,
-      });
+      setTimeout(() => {
+        bot.sendPhoto(chatId, buffer, {
+          caption: `#${entry.cid} votes: ${entry.votes}, author: ${entry.first_name} (@${entry.username})`,
+        });
+      }, 100);
     });
   // }
 });
