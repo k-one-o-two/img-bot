@@ -5,7 +5,7 @@ const bestOf24Array = db.collection('bestOf24Array');
 
 const run = () => {
   bestOf24Array.remove(0);
-  bestOf24Array.remove(0);
+  bestOf24Array.remove(1);
   bestOf24Array.save();
 
   const entries = bestOf24Array.items;
