@@ -446,9 +446,10 @@ bot.onText(/^get_winners$/, (msg) => {
       const buffer = fs.readFileSync(`./24/${entry.file}`);
       setTimeout(() => {
         bot.sendPhoto(chatId, buffer, {
-          caption: `#${entry.cid} votes: ${entry.votes}, author: ${entry.first_name} (@${entry.username})`,
+          caption: entry.username
+            ? `#${entry.cid} votes: ${entry.votes}, author: ${entry.first_name} (@${entry.username})`
+            : `#${entry.cid} votes: ${entry.votes}, author: ${entry.first_name}`,
         });
       }, 100);
     });
-  // }
 });
