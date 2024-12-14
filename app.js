@@ -440,6 +440,8 @@ bot.onText(/^get_winners$/, (msg) => {
 
   const entries = bestOf24Array.items;
 
+  console.info(entries);
+
   entries
     .sort((a, b) => b.votes - a.votes)
     .forEach((entry) => {
