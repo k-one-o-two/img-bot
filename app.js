@@ -434,13 +434,11 @@ bot.onText(/^get_winners$/, (msg) => {
   const chatId = msg.chat.id;
   const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
 
-  // if (!isAdminGroupMessage) {
-  //   return;
-  // }
+  if (!isAdminGroupMessage) {
+    return;
+  }
 
   const entries = bestOf24Array.items;
-
-  console.info(entries);
 
   entries
     .sort((a, b) => b.votes - a.votes)
