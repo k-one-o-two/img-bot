@@ -315,36 +315,45 @@ bot.onText(/^#bestOf24$/, (msg) => {
 
   const now = new Date();
 
-  if (now < voteStartDate) {
-    bot.sendMessage(
-      chatId,
-      `Подождите, голосование начнется ${voteStartDate.toLocaleDateString(
-        'ru',
-      )} ${voteStartDate.toLocaleTimeString('ru')}`,
-      {
-        reply_to_message_id: msg.message_id,
-      },
-    );
+  // if (now < voteStartDate) {
+  //   bot.sendMessage(
+  //     chatId,
+  //     `Подождите, голосование начнется ${voteStartDate.toLocaleDateString(
+  //       'ru',
+  //     )} ${voteStartDate.toLocaleTimeString('ru')}`,
+  //     {
+  //       reply_to_message_id: msg.message_id,
+  //     },
+  //   );
 
-    return;
-  }
+  //   return;
+  // }
 
   bot.sendMessage(
     chatId,
-    `Сейчас я отправлю присланные на конкурс фотографии.`,
+    `Сейчас я отправлю присланные на конкурс фотографии в случайном порядке.`,
     {
       reply_to_message_id: msg.message_id,
     },
   );
 
-  entries
-    .sort(() => Math.random() - 0.5) // random sort
-    .forEach((entry) => {
-      const buffer = fs.readFileSync(`./24/${entry.file}`);
-      bot.sendPhoto(chatId, buffer, {
-        caption: `#${entry.cid}`,
-      });
+  const sorted = entries.sort(() => Math.random() - 0.5); // random sort
+
+  let i = 0;
+  const id = setInterval(function () {
+    if (i >= sorted.length) {
+      clearInterval(id);
+      return;
+    }
+
+    const entry = sorted[i];
+    const buffer = fs.readFileSync(`./24/${entry.file}`);
+
+    bot.sendPhoto(chatId, buffer, {
+      caption: `#${entry.cid}`,
     });
+    i++;
+  }, 1000);
 
   if (userHasVoted(msg)) {
     bot.sendMessage(chatId, `Твой голос уже записан`, {
@@ -451,7 +460,6 @@ bot.onText(/^get_winners$/, (msg) => {
     const entry = sorted[i];
     const buffer = fs.readFileSync(`./24/${entry.file}`);
 
-    console.log('sending', entry);
     bot.sendPhoto(chatId, buffer, {
       caption: entry.username
         ? `#${entry.cid} votes: ${entry.votes}, author: ${entry.first_name} (@${entry.username})`
