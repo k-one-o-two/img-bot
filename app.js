@@ -442,14 +442,16 @@ bot.onText(/^get_winners$/, (msg) => {
   const sorted = entries.sort((a, b) => b.votes - a.votes);
 
   let i = 0;
-  const id = setInterval(function () {
+  const id = window.setInterval(function () {
     if (i >= sorted.length) {
       clearInterval(id);
       return;
     }
 
     const entry = sorted[i];
+    const buffer = fs.readFileSync(`./24/${entry.file}`);
 
+    console.log(i);
     bot.sendPhoto(chatId, buffer, {
       caption: entry.username
         ? `#${entry.cid} votes: ${entry.votes}, author: ${entry.first_name} (@${entry.username})`
