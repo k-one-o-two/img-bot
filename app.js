@@ -439,17 +439,22 @@ bot.onText(/^get_winners$/, (msg) => {
   }
 
   const entries = bestOf24Array.items;
+  const sorted = entries.sort((a, b) => b.votes - a.votes);
 
-  entries
-    .sort((a, b) => b.votes - a.votes)
-    .forEach((entry) => {
-      const buffer = fs.readFileSync(`./24/${entry.file}`);
-      setTimeout(() => {
-        bot.sendPhoto(chatId, buffer, {
-          caption: entry.username
-            ? `#${entry.cid} votes: ${entry.votes}, author: ${entry.first_name} (@${entry.username})`
-            : `#${entry.cid} votes: ${entry.votes}, author: ${entry.first_name}`,
-        });
-      }, 100);
+  let i = 0;
+  const id = window.setInterval(function () {
+    if (i >= sorted.length) {
+      clearInterval(id);
+      return;
+    }
+
+    const entry = sorted[i];
+
+    bot.sendPhoto(chatId, buffer, {
+      caption: entry.username
+        ? `#${entry.cid} votes: ${entry.votes}, author: ${entry.first_name} (@${entry.username})`
+        : `#${entry.cid} votes: ${entry.votes}, author: ${entry.first_name}`,
     });
+    i++;
+  }, 100);
 });
