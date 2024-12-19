@@ -442,7 +442,7 @@ bot.onText(/^get_winners$/, (msg) => {
   const sorted = entries.sort((a, b) => b.votes - a.votes);
 
   let i = 0;
-  const id = window.setInterval(function () {
+  const id = setInterval(function () {
     if (i >= sorted.length) {
       clearInterval(id);
       return;
