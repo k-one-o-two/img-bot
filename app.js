@@ -315,19 +315,19 @@ bot.onText(/^#bestOf24$/, (msg) => {
 
   const now = new Date();
 
-  // if (now < voteStartDate) {
-  //   bot.sendMessage(
-  //     chatId,
-  //     `Подождите, голосование начнется ${voteStartDate.toLocaleDateString(
-  //       'ru',
-  //     )} ${voteStartDate.toLocaleTimeString('ru')}`,
-  //     {
-  //       reply_to_message_id: msg.message_id,
-  //     },
-  //   );
+  if (now < voteStartDate) {
+    bot.sendMessage(
+      chatId,
+      `Подождите, голосование начнется ${voteStartDate.toLocaleDateString(
+        'ru',
+      )} ${voteStartDate.toLocaleTimeString('ru')}`,
+      {
+        reply_to_message_id: msg.message_id,
+      },
+    );
 
-  //   return;
-  // }
+    return;
+  }
 
   bot.sendMessage(
     chatId,
