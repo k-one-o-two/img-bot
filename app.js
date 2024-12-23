@@ -126,19 +126,19 @@ bot.on('photo', (msg) => {
 
     const now = new Date();
 
-    // if (now >= contestAcceptEnds) {
-    //   bot.sendMessage(
-    //     chatId,
-    //     `Прием фотографий уже закончен закончен (${contestAcceptEnds.toLocaleDateString(
-    //       'ru',
-    //     )})`,
-    //     {
-    //       reply_to_message_id: msg.message_id,
-    //     },
-    //   );
+    if (now >= contestAcceptEnds) {
+      bot.sendMessage(
+        chatId,
+        `Прием фотографий уже закончен закончен (${contestAcceptEnds.toLocaleDateString(
+          'ru',
+        )})`,
+        {
+          reply_to_message_id: msg.message_id,
+        },
+      );
 
-    //   return;
-    // }
+      return;
+    }
 
     console.log(new Date().toString(), ' BOT got photo for contest');
 
@@ -227,7 +227,7 @@ bot.on('video', (msg) => {
 });
 
 // confirm
-bot.onText(/^ok\s?(.*)/, (msg, match) => {
+bot.onText(/^ok\s?(.*)/i, (msg, match) => {
   console.log(new Date().toString(), ' BOT got message');
   const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
   const comment = match[1]; // the captured "comment"
@@ -265,7 +265,7 @@ bot.onText(/^ok\s?(.*)/, (msg, match) => {
 });
 
 // reject
-bot.onText(/^no (.+)/, (msg, match) => {
+bot.onText(/^no (.+)/i, (msg, match) => {
   console.log(new Date().toString(), ' BOT got reject text');
   const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
 
@@ -296,7 +296,7 @@ bot.onText(/^no (.+)/, (msg, match) => {
   }
 });
 
-bot.onText(/^#bestOf24$/, (msg) => {
+bot.onText(/^#bestOf24$/i, (msg) => {
   const entries = bestOf24Array.items;
 
   const chatId = msg.chat.id;
@@ -370,7 +370,7 @@ bot.onText(/^#bestOf24$/, (msg) => {
   }
 });
 
-bot.onText(/^vote$/, (msg) => {
+bot.onText(/^vote$/i, (msg) => {
   const chatId = msg.chat.id;
 
   if (msg.chat.type !== 'private') {
@@ -438,7 +438,7 @@ bot.onText(/^vote$/, (msg) => {
   });
 });
 
-bot.onText(/^get_winners$/, (msg) => {
+bot.onText(/^get_winners$/i, (msg) => {
   console.log(new Date().toString(), ' BOT got message');
   const chatId = msg.chat.id;
   const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
