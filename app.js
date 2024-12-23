@@ -126,19 +126,19 @@ bot.on('photo', (msg) => {
 
     const now = new Date();
 
-    // if (now >= contestAcceptEnds) {
-    //   bot.sendMessage(
-    //     chatId,
-    //     `Прием фотографий уже закончен закончен (${contestAcceptEnds.toLocaleDateString(
-    //       'ru',
-    //     )})`,
-    //     {
-    //       reply_to_message_id: msg.message_id,
-    //     },
-    //   );
+    if (now >= contestAcceptEnds) {
+      bot.sendMessage(
+        chatId,
+        `Прием фотографий уже закончен закончен (${contestAcceptEnds.toLocaleDateString(
+          'ru',
+        )})`,
+        {
+          reply_to_message_id: msg.message_id,
+        },
+      );
 
-    //   return;
-    // }
+      return;
+    }
 
     console.log(new Date().toString(), ' BOT got photo for contest');
 
