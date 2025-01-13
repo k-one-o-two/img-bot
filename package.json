@@ -17,11 +17,15 @@
   },
   "homepage": "https://github.com/k-one-o-two/img-bot#readme",
   "dependencies": {
+    "cron": "^3.5.0",
+    "date-fns": "^4.1.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "input": "^1.0.1",
     "locallydb": "^0.0.9",
     "node-telegram-bot-api": "^0.66.0",
-    "nodemon": "^3.1.4"
+    "nodemon": "^3.1.4",
+    "telegram": "^2.26.16"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
