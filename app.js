@@ -174,7 +174,7 @@ const getBestOfCurrentMonth = async (client) => {
 
   const req = {
     peer: process.env.PHOTO_CHANNEL,
-    limit: 100, // we hope it is more than one month
+    limit: 1000, // we hope it is more than one month
   };
 
   const result = await client.invoke(new Api.messages.GetHistory(req));
@@ -217,21 +217,27 @@ const getBestOfCurrentMonth = async (client) => {
         new Date(message.date * 1000) < new Date(startOfCurMonth)
       );
     })
-    .sort((mA, mB) => mA - mB);
+    .sort((mA, mB) => mB.reactionsCnt - mA.reactionsCnt);
+
+  // console.info(
+  //   mappedMessages.map((message) => {
+  //     return {
+  //       title: message.title,
+  //       from: message.from,
+  //       fromId: message.fromId,
+  //       dateFormatted: message.dateFormatted,
+  //       date: message.date,
+  //       // photo: message.media.photo,
+  //       reactionsCnt: message.reactionsCnt,
+  //     };
+  //   }),
+  // );
 
   const bestOfTheMonth = mappedMessages[0];
-  downloadPhoto(bestOfTheMonth.photo, client);
+  await downloadPhoto(bestOfTheMonth.photo, client);
 
   return bestOfTheMonth;
 };
-
-// const sendBestOfCurrentMonth = async (bot, bestOfTheMonth) => {
-//   const buffer = fs.readFileSync(`./output.jpg`);
-
-//   bot.sendPhoto(nerdsbayPhoto, buffer, {
-//     caption: `Лучшая фотография ${bestOfTheMonth.reactionsCnt} likes`,
-//   });
-// };
 
 // BOT event listeners
 const setupBotEvents = () => {
@@ -616,6 +622,8 @@ const setupBotEvents = () => {
   });
 
   bot.onText(/^get_best_of_month$/i, async (msg) => {
+    const chatId = msg.chat.id;
+
     const prevMonth = subMonths(new Date(), 1);
 
     const client = await login();
@@ -623,7 +631,7 @@ const setupBotEvents = () => {
 
     const buffer = fs.readFileSync(`./output.jpg`);
 
-    bot.sendPhoto(nerdsbayPhoto, buffer, {
+    bot.sendPhoto(chatId, buffer, {
       caption: `Top photo for ${format(prevMonth, 'MMMM yyyy')} with ${
         bestOfTheMonth.reactionsCnt
       } likes`,
