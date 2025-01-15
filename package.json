@@ -17,7 +17,6 @@
   },
   "homepage": "https://github.com/k-one-o-two/img-bot#readme",
   "dependencies": {
-    "canvas": "^3.0.1",
     "cron": "^3.5.0",
     "date-fns": "^4.1.0",
     "dotenv": "^16.4.5",

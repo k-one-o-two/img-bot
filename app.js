@@ -13,12 +13,6 @@ const { subMonths, startOfMonth, format } = require('date-fns');
 const input = require('input');
 const { Jimp, loadFont } = require('jimp');
 const locallydb = require('locallydb');
-const {
-  createCanvas,
-  loadImage,
-  registerFont,
-  deregisterAllFonts,
-} = require('canvas');
 
 const db = new locallydb('./mydb');
 
@@ -125,10 +119,28 @@ const checkMessage = (msg) => {
 };
 
 const messWithImages = async () => {
+  const prevMonth = subMonths(new Date(), 1);
+  const monthIndex = prevMonth.getMonth();
+
+  const months = [
+    'tammikuun paras',
+    'helmikuun paras',
+    'Maaliskuun paras',
+    'huhtikuun paras',
+    'paras toukokuuta',
+    'kesäkuun paras',
+    'heinäkuun paras',
+    'elokuun paras',
+    'syyskuun paras',
+    'lokakuun paras',
+    'marraskuun paras',
+    'joulukuun paras',
+  ];
+
   const border = 20;
 
   const stampXOffset = randomIntFromInterval(border, 50);
-  const stampYOffset = randomIntFromInterval(border, 15);
+  const stampYOffset = randomIntFromInterval(border * 2, 15);
 
   const stampRotate = randomIntFromInterval(0, 20);
 
@@ -139,8 +151,6 @@ const messWithImages = async () => {
 
   stamp.resize({ h: height / 5 });
   const { width: stampWidth, height: stampHeight } = stamp.bitmap;
-
-  //
 
   // apply borders
   const borderH = new Jimp({ width, height: border, color: 0xffffffff });
@@ -164,7 +174,6 @@ const messWithImages = async () => {
     color: 0xffffffff,
   });
 
-  console.info({ stampRotate });
   stampBg.opacity(0.1);
 
   stamp.composite(stampBg, 0, 0);
@@ -172,29 +181,20 @@ const messWithImages = async () => {
 
   image.composite(stamp, width - stampWidth - stampXOffset, stampYOffset);
 
-  registerFont('./CreamySugar-gxnGR.ttf', { family: 'CreamySugar' });
+  const font = await loadFont('./font/18.fnt');
+
+  image.rotate(90);
+
+  image.print({
+    font,
+    x: border,
+    y: width - 50,
+    text: `postikortti suomesta, ${months[monthIndex]}`,
+  });
+
+  image.rotate(-90);
 
   await image.write('output_stamp.jpg');
-  const canvasImage = await loadImage('output_stamp.jpg');
-
-  const canvas = createCanvas(canvasImage.width, canvasImage.height),
-    ctx = canvas.getContext('2d');
-
-  // (C2) DRAW IMAGE ONTO CANVAS
-  ctx.drawImage(canvasImage, 0, 0);
-
-  ctx.font = '36px "CreamySugar"';
-  ctx.fillStyle = 'rgb(0, 0, 0)';
-  ctx.lineWidth = 2;
-
-  // (C3) WRITE TEXT ONTO IMAGE
-  ctx.fillText('sText', 100, 100);
-
-  // (C4) SAVE
-  const out = fs.createWriteStream('output_stamp_text.jpg'),
-    stream = canvas.createPNGStream();
-  stream.pipe(out);
-  out.on('finish', () => console.log('Done'));
 };
 
 const login = async () => {
