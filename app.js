@@ -6,17 +6,20 @@ dotenv.config();
 const fs = require('fs');
 const { writeFile } = require('node:fs/promises');
 const { Readable } = require('node:stream');
-
 const TelegramBot = require('node-telegram-bot-api');
-
 const { TelegramClient, Api } = require('telegram');
 const { StoreSession } = require('telegram/sessions');
-
 const { subMonths, startOfMonth, format } = require('date-fns');
-
 const input = require('input');
-
+const { Jimp, loadFont } = require('jimp');
 const locallydb = require('locallydb');
+const {
+  createCanvas,
+  loadImage,
+  registerFont,
+  deregisterAllFonts,
+} = require('canvas');
+
 const db = new locallydb('./mydb');
 
 const logObject = (obj) => console.log(JSON.stringify(obj, undefined, 2));
@@ -32,8 +35,6 @@ const token = process.env.TOKEN;
 const nerdsbayPhotoAdmins = process.env.ADMIN_GROUP_ID;
 const nerdsbayPhoto = process.env.PHOTO_CHANNEL;
 const confirmMessage = 'ok';
-
-console.log(new Date().toString(), ' BOT started');
 
 const chatsArray = db.collection('chatsArray');
 const approvedArray = db.collection('approvedArray');
@@ -121,6 +122,79 @@ const checkMessage = (msg) => {
   }
 
   return true;
+};
+
+const messWithImages = async () => {
+  const border = 20;
+
+  const stampXOffset = randomIntFromInterval(border, 50);
+  const stampYOffset = randomIntFromInterval(border, 15);
+
+  const stampRotate = randomIntFromInterval(0, 20);
+
+  const image = await Jimp.read('output.jpg');
+  const { width, height } = image.bitmap;
+
+  const stamp = await Jimp.read(`stamps/${randomIntFromInterval(1, 5)}.png`);
+
+  stamp.resize({ h: height / 5 });
+  const { width: stampWidth, height: stampHeight } = stamp.bitmap;
+
+  //
+
+  // apply borders
+  const borderH = new Jimp({ width, height: border, color: 0xffffffff });
+  image.composite(borderH, 0, 0);
+  image.composite(borderH, 0, height - border);
+
+  const borderR = new Jimp({ width: border, height, color: 0xffffffff });
+  image.composite(borderR, width - border, 0);
+
+  const borderL = new Jimp({ width: border * 4, height, color: 0xffffffff });
+  image.composite(borderL, 0, 0);
+
+  const overlay = new Jimp({ width, height, color: 0x000000ff });
+  overlay.opacity(0.1);
+
+  image.composite(overlay, border * 3, 0);
+
+  const stampBg = new Jimp({
+    width: stampWidth,
+    height: stampHeight,
+    color: 0xffffffff,
+  });
+
+  console.info({ stampRotate });
+  stampBg.opacity(0.1);
+
+  stamp.composite(stampBg, 0, 0);
+  stamp.rotate(stampRotate);
+
+  image.composite(stamp, width - stampWidth - stampXOffset, stampYOffset);
+
+  registerFont('./CreamySugar-gxnGR.ttf', { family: 'CreamySugar' });
+
+  await image.write('output_stamp.jpg');
+  const canvasImage = await loadImage('output_stamp.jpg');
+
+  const canvas = createCanvas(canvasImage.width, canvasImage.height),
+    ctx = canvas.getContext('2d');
+
+  // (C2) DRAW IMAGE ONTO CANVAS
+  ctx.drawImage(canvasImage, 0, 0);
+
+  ctx.font = '36px "CreamySugar"';
+  ctx.fillStyle = 'rgb(0, 0, 0)';
+  ctx.lineWidth = 2;
+
+  // (C3) WRITE TEXT ONTO IMAGE
+  ctx.fillText('sText', 100, 100);
+
+  // (C4) SAVE
+  const out = fs.createWriteStream('output_stamp_text.jpg'),
+    stream = canvas.createPNGStream();
+  stream.pipe(out);
+  out.on('finish', () => console.log('Done'));
 };
 
 const login = async () => {
@@ -629,7 +703,9 @@ const setupBotEvents = () => {
     const client = await login();
     const bestOfTheMonth = await getBestOfCurrentMonth(client);
 
-    const buffer = fs.readFileSync(`./output.jpg`);
+    await messWithImages();
+
+    const buffer = fs.readFileSync(`./output_stamp_text.jpg`);
 
     bot.sendPhoto(chatId, buffer, {
       caption: `Top photo for ${format(prevMonth, 'MMMM yyyy')} with ${
@@ -639,5 +715,12 @@ const setupBotEvents = () => {
   });
 };
 
+function randomIntFromInterval(min, max) {
+  // min and max included
+  return Math.floor(Math.random() * (max - min + 1) + min);
+}
+
 const bot = createBot();
 setupBotEvents();
+
+messWithImages();
