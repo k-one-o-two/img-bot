@@ -705,7 +705,7 @@ const setupBotEvents = () => {
 
     await messWithImages();
 
-    const buffer = fs.readFileSync(`./output_stamp_text.jpg`);
+    const buffer = fs.readFileSync(`./output_stamp.jpg`);
 
     bot.sendPhoto(chatId, buffer, {
       caption: `Top photo for ${format(prevMonth, 'MMMM yyyy')} with ${
