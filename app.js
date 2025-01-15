@@ -723,4 +723,4 @@ function randomIntFromInterval(min, max) {
 const bot = createBot();
 setupBotEvents();
 
-messWithImages();
+// messWithImages();
