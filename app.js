@@ -585,8 +585,8 @@ const tick = () => {
   // bot.forwardMessage
 }
 const job = new CronJob(
-	// '* */30 * * * *', // every half an hour
-  '*/30 * * * * *', // every half an hour
+	'* */30 * * * *', // every half an hour
+  // '*/30 * * * * *', // every half a minute
 	tick, // onTick
 	null, // onComplete
 	true, // start
