@@ -23,6 +23,11 @@ const createBot = () => {
   const bot = new TelegramBot(token, { polling: true });
   bot.on('polling_error', console.log);
 
+    bot.sendMessage(
+    nerdsbayPhotoAdmins,
+    `hi there' I've been started`,
+  );
+
   return bot;
 };
 
