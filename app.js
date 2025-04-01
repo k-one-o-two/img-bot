@@ -562,14 +562,15 @@ setupBotEvents();
 const tick = () => {
   const messages = fwdQueue.where().items;
 
+  
+  if (!messages || !messages.length) {
+    return;
+  }
+  
   bot.sendMessage(
     nerdsbayPhotoAdmins,
     `У меня ${messages.length} в очереди`,
   );
-
-  if (!messages || !messages.length) {
-    return;
-  }
 
   const message = messages[0];
   const cid = message.cid;
