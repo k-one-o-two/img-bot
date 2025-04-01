@@ -559,16 +559,22 @@ setupBotEvents();
 const tick = () => {
   const messages = fwdQueue.where().items;
 
+  bot.sendMessage(
+    nerdsbayPhotoAdmins,
+    `У меня ${messages.length} в очереди`,
+  );
+
   if (!messages || !messages.length) {
-    console.log('got nothing to send');
     return;
   }
 
-  console.log(`got ${messages.length} to send`);
-
   const message = messages[0];
   const cid = message.cid;
-  console.info('gonna send :: ', cid);
+
+  bot.sendMessage(
+    nerdsbayPhotoAdmins,
+    `Отправляю ${message.messageId}, cid: ${cid}`,
+  );
 
   // {
   //   chatId: -4226153478,
