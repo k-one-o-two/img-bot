@@ -3,6 +3,7 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
+const {CronJob} = require('cron');
 const fs = require('fs');
 const { writeFile } = require('node:fs/promises');
 const { Readable } = require('node:stream');
@@ -29,6 +30,8 @@ const token = process.env.TOKEN;
 const nerdsbayPhotoAdmins = process.env.ADMIN_GROUP_ID;
 const nerdsbayPhoto = process.env.PHOTO_CHANNEL;
 const confirmMessage = 'ok';
+
+const fwdQueue = db.collection('fwdQueue');
 
 const chatsArray = db.collection('chatsArray');
 const approvedArray = db.collection('approvedArray');
@@ -158,7 +161,6 @@ const messWithImages = async () => {
     // apply borders
     const borderH = new Jimp({ width, height: border, color: 0xffffffff });
     image.composite(borderH, 0, 0);
-    // image.composite(borderH, 0, height - border);
 
     const borderV = new Jimp({ width: border, height, color: 0xffffffff });
     image.composite(borderV, width - border, 0);
@@ -385,63 +387,6 @@ const setupBotEvents = () => {
       );
     }
 
-    // contest section
-
-    // if (msg.caption === '#24best') {
-    //   // contest photo
-
-    //   const now = new Date();
-
-    //   if (now >= contestAcceptEnds) {
-    //     bot.sendMessage(
-    //       chatId,
-    //       `Прием фотографий уже закончен закончен (${contestAcceptEnds.toLocaleDateString(
-    //         'ru',
-    //       )})`,
-    //       {
-    //         reply_to_message_id: msg.message_id,
-    //       },
-    //     );
-
-    //     return;
-    //   }
-
-    //   console.log(new Date().toString(), ' BOT got photo for contest');
-
-    //   const fileId = msg.photo[msg.photo.length - 1].file_id;
-    //   const fileUniqueId = msg.photo[0].file_unique_id;
-
-    //   const userContestEntry = bestOf24Array.where({ user: msg.from.id }).items;
-
-    //   if (userContestEntry.length) {
-    //     bot.sendMessage(
-    //       chatId,
-    //       `На конкурс можно отправить только одну фотографию`,
-    //       {
-    //         reply_to_message_id: msg.message_id,
-    //       },
-    //     );
-    //   } else {
-    //     getFileInfo(fileId).then((data) => {
-    //       if (data.ok) {
-    //         downloadFile(data.result.file_path, chatId).then(() => {
-    //           bestOf24Array.insert({
-    //             user: msg.from.id,
-    //             first_name: msg.from.first_name,
-    //             username: msg.from.username,
-    //             msgId: msg.message_id,
-    //             file: `${chatId}_${data.result.file_path.replaceAll('/', '_')}`,
-    //             fileId: fileUniqueId,
-    //             votes: 0,
-    //           });
-    //         });
-    //       }
-    //     });
-    //     bot.sendMessage(chatId, `Я получил фотографию на конкурс, удачи!`, {
-    //       reply_to_message_id: msg.message_id,
-    //     });
-    //   }
-    // } else {
     // normal photo
 
     console.log(new Date().toString(), ' BOT got photo');
@@ -507,7 +452,7 @@ const setupBotEvents = () => {
       const fileId = getFileId(original);
 
       try {
-        bot.forwardMessage(nerdsbayPhoto, msg.chat.id, original.message_id);
+        fwdQueue.insert({ chatId: msg.chat.id, messageId: original.message_id})
       } catch (e) {
         console.log('forward failed: ', e);
       }
@@ -518,7 +463,7 @@ const setupBotEvents = () => {
         try {
           bot.sendMessage(
             savedUser.user,
-            `Материал опубликован! ${
+            `Спасибо, материал одобрен, возможна очередь отправки. ${
               comment ? `Комментарий: "${comment}"` : ''
             }`,
             {
@@ -564,190 +509,7 @@ const setupBotEvents = () => {
     }
   });
 
-  bot.onText(/^#bestOf24$/i, (msg) => {
-    bot.sendMessage(chatId, `Конкурс уже закончен и голосование закрыто`, {
-      reply_to_message_id: msg.message_id,
-    });
-
-    return;
-
-    // const entries = bestOf24Array.items;
-
-    // const chatId = msg.chat.id;
-
-    // if (msg.chat.type !== 'private') {
-    //   bot.sendMessage(
-    //     chatId,
-    //     `Эта команда доступна только в личных сообщениях с ботом`,
-    //     {
-    //       reply_to_message_id: msg.message_id,
-    //     },
-    //   );
-
-    //   return;
-    // }
-
-    // const now = new Date();
-
-    // if (now < voteStartDate) {
-    //   bot.sendMessage(
-    //     chatId,
-    //     `Подождите, голосование начнется ${voteStartDate.toLocaleDateString(
-    //       'ru',
-    //     )} ${voteStartDate.toLocaleTimeString('ru')}`,
-    //     {
-    //       reply_to_message_id: msg.message_id,
-    //     },
-    //   );
-
-    //   return;
-    // }
-
-    // bot.sendMessage(
-    //   chatId,
-    //   `Сейчас я отправлю присланные на конкурс фотографии в случайном порядке.`,
-    //   {
-    //     reply_to_message_id: msg.message_id,
-    //   },
-    // );
-
-    // const sorted = entries.sort(() => Math.random() - 0.5); // random sort
-
-    // let i = 0;
-    // const id = setInterval(function () {
-    //   if (i >= sorted.length) {
-    //     clearInterval(id);
-    //     return;
-    //   }
-
-    //   const entry = sorted[i];
-    //   const buffer = fs.readFileSync(`./24/${entry.file}`);
-
-    //   bot.sendPhoto(chatId, buffer, {
-    //     caption: `#${entry.cid}`,
-    //   });
-    //   i++;
-    // }, 1000);
-
-    // if (userHasVoted(msg)) {
-    //   bot.sendMessage(chatId, `Твой голос уже записан`, {
-    //     reply_to_message_id: msg.message_id,
-    //   });
-    // } else {
-    //   bot.sendMessage(
-    //     chatId,
-    //     `Чтобы отдать свой голос, ответь на сообщение с понравившейся фотографией текстом vote`,
-    //     {
-    //       reply_to_message_id: msg.message_id,
-    //     },
-    //   );
-    // }
-  });
-
-  bot.onText(/^vote$/i, (msg) => {
-    const chatId = msg.chat.id;
-
-    bot.sendMessage(chatId, `Конкурс уже закончен и голосование закрыто`, {
-      reply_to_message_id: msg.message_id,
-    });
-
-    return;
-
-    // if (msg.chat.type !== 'private') {
-    //   bot.sendMessage(
-    //     chatId,
-    //     `Эта команда доступна только в личных сообщениях с ботом`,
-    //     {
-    //       reply_to_message_id: msg.message_id,
-    //     },
-    //   );
-
-    //   return;
-    // }
-
-    // const now = new Date();
-
-    // if (now < voteStartDate) {
-    //   bot.sendMessage(
-    //     chatId,
-    //     `Подождите, голосование начнется ${voteStartDate.toLocaleDateString(
-    //       'ru',
-    //     )} ${voteStartDate.toLocaleTimeString('ru')}`,
-    //     {
-    //       reply_to_message_id: msg.message_id,
-    //     },
-    //   );
-
-    //   return;
-    // }
-
-    // if (userHasVoted(msg)) {
-    //   bot.sendMessage(chatId, `Голосовать можно только один раз`, {
-    //     reply_to_message_id: msg.message_id,
-    //   });
-    //   return;
-    // }
-
-    // const original = msg.reply_to_message;
-    // const cid = Number(/(#\d+)/.exec(original.caption)[0].replace('#', ''));
-    // const user = msg.from.id;
-
-    // const itemToVote = bestOf24Array.get(cid);
-
-    // if (!itemToVote) {
-    //   return;
-    // }
-
-    // if (itemToVote.user === user) {
-    //   bot.sendMessage(chatId, `Нельзя голосовать за свою фотографию`, {
-    //     reply_to_message_id: msg.message_id,
-    //   });
-
-    //   return;
-    // }
-
-    // bestOf24Array.update(cid, {
-    //   votes: Number(itemToVote.votes) + 1,
-    // });
-    // votedList.insert({
-    //   user_id: user,
-    // });
-
-    // bot.sendMessage(chatId, `Спасибо, твой голос учтен`, {
-    //   reply_to_message_id: msg.message_id,
-    // });
-  });
-
-  bot.onText(/^get_winners$/i, (msg) => {
-    console.log(new Date().toString(), ' BOT got message');
-    const chatId = msg.chat.id;
-    const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
-
-    if (!isAdminGroupMessage) {
-      return;
-    }
-
-    const entries = bestOf24Array.items;
-    const sorted = entries.sort((a, b) => b.votes - a.votes);
-
-    let i = 0;
-    const id = setInterval(function () {
-      if (i >= sorted.length) {
-        clearInterval(id);
-        return;
-      }
-
-      const entry = sorted[i];
-      const buffer = fs.readFileSync(`./24/${entry.file}`);
-
-      bot.sendPhoto(chatId, buffer, {
-        caption: entry.username
-          ? `#${entry.cid} votes: ${entry.votes}, author: ${entry.first_name} (@${entry.username})`
-          : `#${entry.cid} votes: ${entry.votes}, author: ${entry.first_name}`,
-      });
-      i++;
-    }, 1000);
-  });
+  
 
   bot.onText(/^get_best_of_month$/i, async (msg) => {
     const chatId = msg.chat.id;
@@ -776,5 +538,43 @@ function randomIntFromInterval(min, max) {
 
 const bot = createBot();
 setupBotEvents();
+
+const tick = () => {
+  const messages = fwdQueue.where().items;
+
+  console.info(messages)
+
+  if (!messages || !messages.length) {
+    console.log('got nothing to send');
+    return;
+  }
+
+  console.log(`got ${messages.length} to send`);
+
+  const message = messages[0];
+  const cid = message.cid;
+  console.info('gonna send :: ', cid);
+
+  // {
+  //   chatId: -4226153478,
+  //   messageId: 9525,
+  //   cid: 0,
+  //   '$created': '2025-04-01T15:32:59.348Z',
+  //   '$updated': '2025-04-01T15:32:59.348Z'
+  // }
+
+  bot.forwardMessage(nerdsbayPhoto, message.chatId, message.messageId);
+
+  fwdQueue.remove(cid);
+  fwdQueue.save();
+  // bot.forwardMessage
+}
+const job = new CronJob(
+	'* */30 * * * *', // every half an hour
+	tick, // onTick
+	null, // onComplete
+	true, // start
+	'America/Los_Angeles' // timeZone
+);
 
 // messWithImages();
