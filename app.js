@@ -595,15 +595,23 @@ const tick = () => {
   fwdQueue.save();
   // bot.forwardMessage
 }
-const job = new CronJob(
-	'* */30 * * * *', // every half an hour
-  // '*/30 * * * * *', // every half a minute
-	() => {
-    tick();
-  }, // onTick
-	null, // onComplete
-	true, // start
-	'America/Los_Angeles' // timeZone
-);
+
+setInterval(() => {
+  bot.sendMessage(
+    197668719,
+    `tick`,
+  );
+
+}, 1000 * 60);
+// const job = new CronJob(
+// 	'* */30 * * * *', // every half an hour
+//   // '*/30 * * * * *', // every half a minute
+// 	() => {
+//     tick();
+//   }, // onTick
+// 	null, // onComplete
+// 	true, // start
+// 	'America/Los_Angeles' // timeZone
+// );
 
 // messWithImages();
