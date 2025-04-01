@@ -599,10 +599,6 @@ const job = new CronJob(
 	'* */30 * * * *', // every half an hour
   // '*/30 * * * * *', // every half a minute
 	() => {
-    bot.sendMessage(
-      nerdsbayPhotoAdmins,
-      `tick ${(new Date()).toString()}`,
-  );
     tick();
   }, // onTick
 	null, // onComplete
