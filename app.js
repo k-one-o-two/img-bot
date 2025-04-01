@@ -529,7 +529,24 @@ const setupBotEvents = () => {
       } likes`,
     });
   });
+
+  bot.onText(/^show_fwd_queue$/i, async (msg) => {
+    const chatId = msg.chat.id;
+    const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
+
+    if (!isAdminGroupMessage) {
+      return;
+    }
+
+    const messages = fwdQueue.where().items;
+
+    bot.sendMessage(
+      chatId,
+      `I have ${messages.length} in my fwdQueue`,
+    );
+  });
 };
+
 
 function randomIntFromInterval(min, max) {
   // min and max included
@@ -541,8 +558,6 @@ setupBotEvents();
 
 const tick = () => {
   const messages = fwdQueue.where().items;
-
-  console.info(messages)
 
   if (!messages || !messages.length) {
     console.log('got nothing to send');
@@ -570,7 +585,8 @@ const tick = () => {
   // bot.forwardMessage
 }
 const job = new CronJob(
-	'* */30 * * * *', // every half an hour
+	// '* */30 * * * *', // every half an hour
+  '*/30 * * * * *', // every half an hour
 	tick, // onTick
 	null, // onComplete
 	true, // start
