@@ -559,10 +559,10 @@ setupBotEvents();
 const tick = () => {
   const messages = fwdQueue.where().items;
 
-  bot.sendMessage(
-    nerdsbayPhotoAdmins,
-    `У меня ${messages.length} в очереди`,
-  );
+  // bot.sendMessage(
+  //   nerdsbayPhotoAdmins,
+  //   `У меня ${messages.length} в очереди`,
+  // );
 
   if (!messages || !messages.length) {
     return;
@@ -571,10 +571,10 @@ const tick = () => {
   const message = messages[0];
   const cid = message.cid;
 
-  bot.sendMessage(
-    nerdsbayPhotoAdmins,
-    `Отправляю ${message.messageId}, cid: ${cid}`,
-  );
+  // bot.sendMessage(
+  //   nerdsbayPhotoAdmins,
+  //   `Отправляю ${message.messageId}, cid: ${cid}`,
+  // );
 
   // {
   //   chatId: -4226153478,
