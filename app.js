@@ -3,7 +3,7 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
-const {CronJob} = require('cron');
+const { CronJob } = require('cron');
 const fs = require('fs');
 const { writeFile } = require('node:fs/promises');
 const { Readable } = require('node:stream');
@@ -21,12 +21,13 @@ const logObject = (obj) => console.log(JSON.stringify(obj, undefined, 2));
 
 const createBot = () => {
   const bot = new TelegramBot(token, { polling: true });
+  console.info('Started')
   bot.on('polling_error', console.log);
 
-    bot.sendMessage(
-    nerdsbayPhotoAdmins,
-    `hi there' I've been started`,
-  );
+  //   bot.sendMessage(
+  //   nerdsbayPhotoAdmins,
+  //   `hi there' I've been started`,
+  // );
 
   return bot;
 };
@@ -457,7 +458,10 @@ const setupBotEvents = () => {
       const fileId = getFileId(original);
 
       try {
-        fwdQueue.insert({ chatId: msg.chat.id, messageId: original.message_id})
+        fwdQueue.insert({
+          chatId: msg.chat.id,
+          messageId: original.message_id,
+        });
       } catch (e) {
         console.log('forward failed: ', e);
       }
@@ -514,8 +518,6 @@ const setupBotEvents = () => {
     }
   });
 
-  
-
   bot.onText(/^get_best_of_month$/i, async (msg) => {
     const chatId = msg.chat.id;
 
@@ -545,13 +547,9 @@ const setupBotEvents = () => {
 
     const messages = fwdQueue.where().items;
 
-    bot.sendMessage(
-      chatId,
-      `I have ${messages.length} in my fwdQueue`,
-    );
+    bot.sendMessage(chatId, `I have ${messages.length} in my fwdQueue`);
   });
 };
-
 
 function randomIntFromInterval(min, max) {
   // min and max included
@@ -564,10 +562,10 @@ setupBotEvents();
 const tick = () => {
   const messages = fwdQueue.where().items;
 
-  // bot.sendMessage(
-  //   nerdsbayPhotoAdmins,
-  //   `У меня ${messages.length} в очереди`,
-  // );
+  bot.sendMessage(
+    nerdsbayPhotoAdmins,
+    `У меня ${messages.length} в очереди`,
+  );
 
   if (!messages || !messages.length) {
     return;
@@ -576,10 +574,10 @@ const tick = () => {
   const message = messages[0];
   const cid = message.cid;
 
-  // bot.sendMessage(
-  //   nerdsbayPhotoAdmins,
-  //   `Отправляю ${message.messageId}, cid: ${cid}`,
-  // );
+  bot.sendMessage(
+    nerdsbayPhotoAdmins,
+    `Отправляю ${message.messageId}, cid: ${cid}`,
+  );
 
   // {
   //   chatId: -4226153478,
@@ -593,25 +591,9 @@ const tick = () => {
 
   fwdQueue.remove(cid);
   fwdQueue.save();
-  // bot.forwardMessage
-}
+};
 
 setInterval(() => {
-  bot.sendMessage(
-    197668719,
-    `tick`,
-  );
+  tick();
+}, 1000 * 60 * 30); // 30 mins
 
-}, 1000 * 60);
-// const job = new CronJob(
-// 	'* */30 * * * *', // every half an hour
-//   // '*/30 * * * * *', // every half a minute
-// 	() => {
-//     tick();
-//   }, // onTick
-// 	null, // onComplete
-// 	true, // start
-// 	'America/Los_Angeles' // timeZone
-// );
-
-// messWithImages();
