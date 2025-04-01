@@ -596,8 +596,8 @@ const tick = () => {
   // bot.forwardMessage
 }
 const job = new CronJob(
-	//'* */30 * * * *', // every half an hour
-   '*/30 * * * * *', // every half a minute
+	'* */30 * * * *', // every half an hour
+  // '*/30 * * * * *', // every half a minute
 	() => {
     bot.sendMessage(
       nerdsbayPhotoAdmins,
