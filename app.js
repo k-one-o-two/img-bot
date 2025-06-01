@@ -1,28 +1,28 @@
 // https://t.me/image_accept_bot
-const dotenv = require('dotenv');
+const dotenv = require("dotenv");
 
 dotenv.config();
 
-const { CronJob } = require('cron');
-const fs = require('fs');
-const { writeFile } = require('node:fs/promises');
-const { Readable } = require('node:stream');
-const TelegramBot = require('node-telegram-bot-api');
-const { TelegramClient, Api } = require('telegram');
-const { StoreSession } = require('telegram/sessions');
-const { subMonths, startOfMonth, format } = require('date-fns');
-const input = require('input');
-const { Jimp, loadFont } = require('jimp');
-const locallydb = require('locallydb');
+const { CronJob } = require("cron");
+const fs = require("fs");
+const { writeFile } = require("node:fs/promises");
+const { Readable } = require("node:stream");
+const TelegramBot = require("node-telegram-bot-api");
+const { TelegramClient, Api } = require("telegram");
+const { StoreSession } = require("telegram/sessions");
+const { subMonths, startOfMonth, format } = require("date-fns");
+const input = require("input");
+const { Jimp, loadFont } = require("jimp");
+const locallydb = require("locallydb");
 
-const db = new locallydb('./mydb');
+const db = new locallydb("./mydb");
 
 const logObject = (obj) => console.log(JSON.stringify(obj, undefined, 2));
 
 const createBot = () => {
   const bot = new TelegramBot(token, { polling: true });
-  console.info('Started')
-  bot.on('polling_error', console.log);
+  console.info("Started");
+  bot.on("polling_error", console.log);
 
   //   bot.sendMessage(
   //   nerdsbayPhotoAdmins,
@@ -35,20 +35,20 @@ const createBot = () => {
 const token = process.env.TOKEN;
 const nerdsbayPhotoAdmins = process.env.ADMIN_GROUP_ID;
 const nerdsbayPhoto = process.env.PHOTO_CHANNEL;
-const confirmMessage = 'ok';
+const confirmMessage = "ok";
 
-const fwdQueue = db.collection('fwdQueue');
+const fwdQueue = db.collection("fwdQueue");
 
-const chatsArray = db.collection('chatsArray');
-const approvedArray = db.collection('approvedArray');
-const rejectedArray = db.collection('rejectedArray');
+const chatsArray = db.collection("chatsArray");
+const approvedArray = db.collection("approvedArray");
+const rejectedArray = db.collection("rejectedArray");
 
-const bestOf24Array = db.collection('bestOf24Array');
-const votedList = db.collection('votedList');
+const bestOf24Array = db.collection("bestOf24Array");
+const votedList = db.collection("votedList");
 
 // contest dates
-const contestAcceptEnds = new Date('2024-12-22T20:00:00.000Z'); // 22 декабря, 22:00 UTC+2
-const voteStartDate = new Date('2024-12-23T07:00:00.000Z'); // 23 декабря, 9:00
+const contestAcceptEnds = new Date("2024-12-22T20:00:00.000Z"); // 22 декабря, 22:00 UTC+2
+const voteStartDate = new Date("2024-12-23T07:00:00.000Z"); // 23 декабря, 9:00
 
 const getFileInfo = async (file_id) => {
   const url = `https://api.telegram.org/bot${token}/getFile?file_id=${file_id}`;
@@ -61,7 +61,7 @@ const getFileInfo = async (file_id) => {
 
 const downloadFile = async (file_path, chatId) => {
   const url = `https://api.telegram.org/file/bot${token}/${file_path}`;
-  const fileName = file_path.replaceAll('/', '_');
+  const fileName = file_path.replaceAll("/", "_");
 
   const response = await fetch(url);
   const stream = Readable.fromWeb(response.body);
@@ -109,18 +109,18 @@ const checkMessage = (msg) => {
   const original = msg.reply_to_message;
 
   if (!original) {
-    bot.sendMessage(chatId, 'Не найдено оригинальное сообщение');
+    bot.sendMessage(chatId, "Не найдено оригинальное сообщение");
     return false;
   }
 
   const fileId = getFileId(original);
   if (approvedArray.where({ fileId }).length()) {
-    bot.sendMessage(chatId, 'Эта фотография уже была принята');
+    bot.sendMessage(chatId, "Эта фотография уже была принята");
     return false;
   }
 
   if (rejectedArray.where({ fileId }).length()) {
-    bot.sendMessage(chatId, 'Эта фотография уже была отклонена');
+    bot.sendMessage(chatId, "Эта фотография уже была отклонена");
     return false;
   }
 
@@ -132,18 +132,18 @@ const messWithImages = async () => {
   const monthIndex = prevMonth.getMonth();
 
   const months = [
-    'tammikuun paras',
-    'helmikuun paras',
-    'Maaliskuun paras',
-    'huhtikuun paras',
-    'paras toukokuuta',
-    'kesäkuun paras',
-    'heinäkuun paras',
-    'elokuun paras',
-    'syyskuun paras',
-    'lokakuun paras',
-    'marraskuun paras',
-    'joulukuun paras',
+    "tammikuun paras",
+    "helmikuun paras",
+    "Maaliskuun paras",
+    "huhtikuun paras",
+    "paras toukokuuta",
+    "kesäkuun paras",
+    "heinäkuun paras",
+    "elokuun paras",
+    "syyskuun paras",
+    "lokakuun paras",
+    "marraskuun paras",
+    "joulukuun paras",
   ];
 
   const border = 20;
@@ -153,7 +153,7 @@ const messWithImages = async () => {
 
   const stampRotate = randomIntFromInterval(0, 20);
 
-  const image = await Jimp.read('output.jpg');
+  const image = await Jimp.read("output.jpg");
   const { width, height } = image.bitmap;
 
   const isVertical = height > width;
@@ -197,7 +197,7 @@ const messWithImages = async () => {
 
     image.composite(stamp, width - stampWidth - stampXOffset, stampYOffset);
 
-    const font = await loadFont('./font/18.fnt');
+    const font = await loadFont("./font/18.fnt");
 
     // image.rotate(90);
 
@@ -242,7 +242,7 @@ const messWithImages = async () => {
 
     image.composite(stamp, width - stampWidth - stampXOffset, stampYOffset);
 
-    const font = await loadFont('./font/18.fnt');
+    const font = await loadFont("./font/18.fnt");
 
     image.rotate(90);
 
@@ -256,12 +256,12 @@ const messWithImages = async () => {
     image.rotate(-90);
   }
 
-  await image.write('output_stamp.jpg');
+  await image.write("output_stamp.jpg");
 };
 
 const login = async () => {
   // const stringSession = 'my_session';
-  const storeSession = new StoreSession('my_session');
+  const storeSession = new StoreSession("my_session");
   const client = new TelegramClient(
     storeSession,
     Number(process.env.API_ID),
@@ -278,8 +278,8 @@ const login = async () => {
   // });
   await client.start({
     phoneNumber: process.env.PHONE,
-    password: async () => await input.text('password?'),
-    phoneCode: async () => await input.text('Code ?'),
+    password: async () => await input.text("password?"),
+    phoneCode: async () => await input.text("Code ?"),
     onError: (err) => console.log(err),
 
     // botAuthToken: token,
@@ -295,14 +295,14 @@ const downloadPhoto = async (photo, client) => {
       id: photo.id,
       accessHash: photo.accessHash,
       fileReference: photo.fileReference,
-      thumbSize: 'y',
+      thumbSize: "y",
     }),
     {
       dcId: photo.dcId,
     },
   );
 
-  fs.writeFileSync('output.jpg', buffer);
+  fs.writeFileSync("output.jpg", buffer);
 };
 
 const getBestOfCurrentMonth = async (client) => {
@@ -321,14 +321,14 @@ const getBestOfCurrentMonth = async (client) => {
 
       if (message.reactions) {
         const reactions = message.reactions.results;
-        reactionsCnt = reactions.map((i) => i.count).reduce((i, j) => i + j);
+        reactionsCnt = reactions.map((i) => i.count).reduce((i, j) => i + j, 0);
       }
 
       if (message && message.fwdFrom && message.media && message.media.photo) {
         return {
           title: message.message,
           from: message.fwdFrom.fromName,
-          fromId: message.fwdFrom.fromId ? message.fwdFrom.fromId.userId : '',
+          fromId: message.fwdFrom.fromId ? message.fwdFrom.fromId.userId : "",
           dateFormatted: new Date(message.date * 1000).toDateString(),
           date: message.date,
           photo: message.media.photo,
@@ -377,7 +377,7 @@ const getBestOfCurrentMonth = async (client) => {
 
 // BOT event listeners
 const setupBotEvents = () => {
-  bot.on('photo', (msg) => {
+  bot.on("photo", (msg) => {
     const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
     if (isAdminGroupMessage) {
       return;
@@ -385,7 +385,7 @@ const setupBotEvents = () => {
 
     const chatId = msg.chat.id;
 
-    if (msg.caption === '#24best') {
+    if (msg.caption === "#24best") {
       bot.sendMessage(
         chatId,
         `Прием фотографий уже закончен, я передам фотографию обычным образом`,
@@ -395,7 +395,7 @@ const setupBotEvents = () => {
 
     // normal photo
 
-    console.log(new Date().toString(), ' BOT got photo');
+    console.log(new Date().toString(), " BOT got photo");
 
     bot.sendMessage(
       chatId,
@@ -412,18 +412,18 @@ const setupBotEvents = () => {
     try {
       bot.forwardMessage(nerdsbayPhotoAdmins, msg.chat.id, msg.message_id);
     } catch (e) {
-      console.log('forward failed: ', e);
+      console.log("forward failed: ", e);
     }
     // }
   });
 
-  bot.on('video', (msg) => {
+  bot.on("video", (msg) => {
     const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
     if (isAdminGroupMessage) {
       return;
     }
 
-    console.log(new Date().toString(), ' BOT got vide');
+    console.log(new Date().toString(), " BOT got vide");
     const chatId = msg.chat.id;
 
     bot.sendMessage(chatId, `Я получил видео и отправил его на рассмотрение`, {
@@ -439,13 +439,13 @@ const setupBotEvents = () => {
     try {
       bot.forwardMessage(nerdsbayPhotoAdmins, msg.chat.id, msg.message_id);
     } catch {
-      console.log('forward failed: ', e);
+      console.log("forward failed: ", e);
     }
   });
 
   // confirm
   bot.onText(/^ok\s?(.*)/i, (msg, match) => {
-    console.log(new Date().toString(), ' BOT got message');
+    console.log(new Date().toString(), " BOT got message");
     const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
     const comment = match[1]; // the captured "comment"
 
@@ -463,7 +463,7 @@ const setupBotEvents = () => {
           messageId: original.message_id,
         });
       } catch (e) {
-        console.log('forward failed: ', e);
+        console.log("forward failed: ", e);
       }
       approvedArray.insert({ fileId });
 
@@ -473,14 +473,14 @@ const setupBotEvents = () => {
           bot.sendMessage(
             savedUser.user,
             `Спасибо, материал одобрен, возможна очередь отправки. ${
-              comment ? `Комментарий: "${comment}"` : ''
+              comment ? `Комментарий: "${comment}"` : ""
             }`,
             {
               reply_to_message_id: savedUser.msgId,
             },
           );
         } catch (e) {
-          console.log('replying to user failed: ', e);
+          console.log("replying to user failed: ", e);
         }
       }
     }
@@ -488,7 +488,7 @@ const setupBotEvents = () => {
 
   // reject
   bot.onText(/^no (.+)/i, (msg, match) => {
-    console.log(new Date().toString(), ' BOT got reject text');
+    console.log(new Date().toString(), " BOT got reject text");
     const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
 
     const resp = match[1]; // the captured "reason"
@@ -512,7 +512,7 @@ const setupBotEvents = () => {
             { reply_to_message_id: savedUser.msgId },
           );
         } catch (e) {
-          console.log('replying to user failed: ', e);
+          console.log("replying to user failed: ", e);
         }
       }
     }
@@ -531,7 +531,7 @@ const setupBotEvents = () => {
     const buffer = fs.readFileSync(`./output_stamp.jpg`);
 
     bot.sendPhoto(chatId, buffer, {
-      caption: `Top photo for ${format(prevMonth, 'MMMM yyyy')} with ${
+      caption: `Top photo for ${format(prevMonth, "MMMM yyyy")} with ${
         bestOfTheMonth.reactionsCnt
       } likes`,
     });
@@ -562,15 +562,11 @@ setupBotEvents();
 const tick = () => {
   const messages = fwdQueue.where().items;
 
-  
   if (!messages || !messages.length) {
     return;
   }
-  
-  bot.sendMessage(
-    nerdsbayPhotoAdmins,
-    `У меня ${messages.length} в очереди`,
-  );
+
+  bot.sendMessage(nerdsbayPhotoAdmins, `У меня ${messages.length} в очереди`);
 
   const message = messages[0];
   const cid = message.cid;
@@ -594,7 +590,9 @@ const tick = () => {
   fwdQueue.save();
 };
 
-setInterval(() => {
-  tick();
-}, 1000 * 60 * 30); // 30 mins
-
+setInterval(
+  () => {
+    tick();
+  },
+  1000 * 60 * 30,
+); // 30 mins
