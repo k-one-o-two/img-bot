@@ -39,6 +39,11 @@ const confirmMessage = "ok";
 
 const fwdQueue = db.collection("fwdQueue");
 
+const themes = db.collection("themes");
+const constraints = db.collection("constraints");
+
+const topics = db.collection("topics");
+
 const chatsArray = db.collection("chatsArray");
 const approvedArray = db.collection("approvedArray");
 const rejectedArray = db.collection("rejectedArray");
@@ -393,6 +398,10 @@ const setupBotEvents = () => {
       );
     }
 
+    if (msg.caption.startsWith("#post")) {
+      // generate image
+    }
+
     // normal photo
 
     console.log(new Date().toString(), " BOT got photo");
@@ -548,6 +557,90 @@ const setupBotEvents = () => {
     const messages = fwdQueue.where().items;
 
     bot.sendMessage(chatId, `I have ${messages.length} in my fwdQueue`);
+  });
+
+  bot.onText(/^\+theme\s(.*)/, (msg, match) => {
+    const chatId = msg.chat.id;
+    const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
+
+    if (!isAdminGroupMessage) {
+      return;
+    }
+
+    const newTheme = match[1];
+    const themesArray = themes.where().items;
+
+    if (themesArray.includes(newTheme)) {
+      bot.sendMessage(chatId, `theme ${newTheme} is already in the list`);
+    } else {
+      themes.insert(newTheme);
+      bot.sendMessage(chatId, `theme ${newTheme} has been added`);
+    }
+  });
+  bot.onText(/^\+constraint\s(.*)/, (msg, match) => {
+    const chatId = msg.chat.id;
+    const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
+
+    if (!isAdminGroupMessage) {
+      return;
+    }
+
+    const newConstraint = match[1];
+    const constraintsArray = constraints.where().items;
+
+    if (constraintsArray.includes(newConstraint)) {
+      bot.sendMessage(
+        chatId,
+        `constraint ${newConstraint} is already in the list`,
+      );
+    } else {
+      constraints.insert(newConstraint);
+      bot.sendMessage(chatId, `constraint ${newConstraint} has been added`);
+    }
+  });
+
+  bot.onText(/^generate_theme$/, async (msg) => {
+    const chatId = msg.chat.id;
+    const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
+
+    if (!isAdminGroupMessage) {
+      return;
+    }
+
+    const rnd = (items) => items.sort(() => 0.5 - Math.random())[0];
+
+    const themesArray = themes.where().items;
+    const constraintsArray = constraints.where().items;
+
+    const generated = rnd(themesArray) + " " + rnd(constraintsArray);
+
+    bot.sendMessage(chatId, `I suggest this topic: ${generated}`);
+  });
+
+  bot.onText(/^set/, async (msg) => {
+    const chatId = msg.chat.id;
+    const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
+
+    if (!isAdminGroupMessage) {
+      return;
+    }
+
+    const original = msg.reply_to_message;
+    const extractedTopic = original.text.match(/I suggest this topic: (.*)/);
+
+    if (extractedTopic && extractedTopic[1]) {
+      topics.insert(extractedTopic[1]);
+
+      bot.sendMessage(chatId, `ok, now the topic is: ${extractedTopic[1]}`);
+    }
+  });
+
+  bot.onText(/get_current/, async (msg) => {
+    const chatId = msg.chat.id;
+
+    const lastTopic = topics.where().items.pop();
+
+    bot.sendMessage(chatId, `The current topic is: ${lastTopic}`);
   });
 };
 
