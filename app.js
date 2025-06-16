@@ -398,10 +398,6 @@ const setupBotEvents = () => {
       );
     }
 
-    if (msg.caption.startsWith("#post")) {
-      // generate image
-    }
-
     // normal photo
 
     console.log(new Date().toString(), " BOT got photo");
