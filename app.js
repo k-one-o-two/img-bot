@@ -290,7 +290,11 @@ const sqaureImages = async (n) => {
 };
 
 const login = async () => {
-  // const stringSession = 'my_session';
+  console.info({
+    phoneNumber: process.env.PHONE,
+    password: process.env.PASS,
+    phoneCode: process.env.P_CODE,
+  });
   const storeSession = new StoreSession("my_session");
   const client = new TelegramClient(
     storeSession,
@@ -298,14 +302,7 @@ const login = async () => {
     process.env.API_HASH,
     { connectionRetries: 5 },
   );
-  console.info({
-    phoneNumber: process.env.PHONE,
-    password: process.env.PASS,
-    phoneCode: process.env.P_CODE,
-    onError: (err) => console.log(err),
 
-    // botAuthToken: token,
-  });
   await client.start({
     phoneNumber: process.env.PHONE,
     password: async () => await input.text("password?"),
