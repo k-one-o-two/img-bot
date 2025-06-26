@@ -298,14 +298,14 @@ const login = async () => {
     process.env.API_HASH,
     { connectionRetries: 5 },
   );
-  // console.info({
-  //   phoneNumber: process.env.PHONE,
-  //   password: process.env.PASS,
-  //   phoneCode: process.env.P_CODE,
-  //   onError: (err) => console.log(err),
+  console.info({
+    phoneNumber: process.env.PHONE,
+    password: process.env.PASS,
+    phoneCode: process.env.P_CODE,
+    onError: (err) => console.log(err),
 
-  //   // botAuthToken: token,
-  // });
+    // botAuthToken: token,
+  });
   await client.start({
     phoneNumber: process.env.PHONE,
     password: async () => await input.text("password?"),
