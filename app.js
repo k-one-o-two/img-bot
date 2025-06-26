@@ -312,27 +312,6 @@ const login = async () => {
 
   console.log("You should now be connected.");
 
-  const result = await client.invoke(
-    new Api.InitConnection({
-      apiId: Number(process.env.API_ID),
-      deviceModel: "some string here",
-      systemVersion: "some string here",
-      appVersion: "some string here",
-      systemLangCode: "some string here",
-      langPack: "some string here",
-      langCode: "some string here",
-      // query: new Api.AnyRequest({
-      //   /*...*/
-      // }),
-      // proxy: new Api.InputClientProxy({
-      //   address: "some string here",
-      //   port: 43,
-      // }),
-      params: new Api.JsonNull({}),
-    }),
-  );
-  console.log(result); // prints the result
-
   return client;
 };
 
