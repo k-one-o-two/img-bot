@@ -264,6 +264,31 @@ const messWithImages = async () => {
   await image.write("output_stamp.jpg");
 };
 
+const sqaureImages = async (n) => {
+  return await Promise.all(
+    [...Array(n).keys()].map(async (i) => {
+      const image = await Jimp.read(`output_${i}.jpg`);
+      // console.info(image);
+      const { width, height } = image.bitmap;
+
+      const isVertical = height > width;
+
+      if (isVertical) {
+        const diff = height - width;
+        image.crop({ x: 0, y: diff / 2, h: width, w: width });
+      } else {
+        const diff = width - height;
+        image.crop({ y: 0, x: diff / 2, h: height, w: height });
+      }
+
+      // image.crop(150, 100)
+      image.resize({ w: 512, h: 512 }); // resize
+
+      return image.write(`output_square_${i}.jpg`);
+    }),
+  );
+};
+
 const login = async () => {
   // const stringSession = 'my_session';
   const storeSession = new StoreSession("my_session");
@@ -601,15 +626,15 @@ const setupBotEvents = () => {
     const client = await login();
     const imagesLength = await getBestOfCurrentWeek(client);
 
-    for (let i = 0; i <= imagesLength; i++) {
-      const buffer = fs.readFileSync(`output_${i}.jpg`);
+    await sqaureImages(imagesLength);
 
-      bot.sendPhoto(chatId, buffer, {
-        caption: `${i}`,
-      });
+    const buffers = [];
+    for (let i = 0; i < imagesLength; i++) {
+      const buffer = fs.readFileSync(`output_square_${i}.jpg`);
+      buffers.push(buffer);
+
+      bot.sendPhoto(chatId, buffer);
     }
-
-    // await messWithImages();
   });
 
   bot.onText(/^show_fwd_queue$/i, async (msg) => {
