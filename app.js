@@ -738,6 +738,9 @@ function randomIntFromInterval(min, max) {
 }
 
 console.info("starting...");
+
+login();
+
 const bot = createBot();
 setupBotEvents();
 
