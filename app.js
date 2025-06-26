@@ -314,7 +314,7 @@ const login = async () => {
 
   const result = await client.invoke(
     new Api.InitConnection({
-      apiId: process.env.API_ID,
+      apiId: Number(process.env.API_ID),
       deviceModel: "some string here",
       systemVersion: "some string here",
       appVersion: "some string here",
