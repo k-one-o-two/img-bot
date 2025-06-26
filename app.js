@@ -310,7 +310,9 @@ const login = async () => {
     onError: (err) => console.log(err),
   });
 
-  console.info(client);
+  console.log("You should now be connected.");
+  console.log(client.session.save()); // Save this string to avoid logging in again
+  await client.sendMessage("me", { message: "Hello!" });
 
   return client;
 };
