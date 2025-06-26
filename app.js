@@ -311,8 +311,27 @@ const login = async () => {
   });
 
   console.log("You should now be connected.");
-  console.log(client.session.save()); // Save this string to avoid logging in again
-  await client.sendMessage("me", { message: "Hello!" });
+
+  const result = await client.invoke(
+    new Api.InitConnection({
+      apiId: process.env.API_ID,
+      deviceModel: "some string here",
+      systemVersion: "some string here",
+      appVersion: "some string here",
+      systemLangCode: "some string here",
+      langPack: "some string here",
+      langCode: "some string here",
+      // query: new Api.AnyRequest({
+      //   /*...*/
+      // }),
+      // proxy: new Api.InputClientProxy({
+      //   address: "some string here",
+      //   port: 43,
+      // }),
+      params: new Api.JsonNull({}),
+    }),
+  );
+  console.log(result); // prints the result
 
   return client;
 };
