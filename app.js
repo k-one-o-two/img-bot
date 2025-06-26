@@ -10,7 +10,7 @@ const { Readable } = require("node:stream");
 const TelegramBot = require("node-telegram-bot-api");
 const { TelegramClient, Api } = require("telegram");
 const { StoreSession } = require("telegram/sessions");
-const { subMonths, startOfMonth, format } = require("date-fns");
+const { subMonths, startOfMonth, startOfWeek, format } = require("date-fns");
 const input = require("input");
 const { Jimp, loadFont } = require("jimp");
 const locallydb = require("locallydb");
@@ -294,7 +294,7 @@ const login = async () => {
   return client;
 };
 
-const downloadPhoto = async (photo, client) => {
+const downloadPhoto = async (photo, client, name) => {
   const buffer = await client.downloadFile(
     new Api.InputPhotoFileLocation({
       id: photo.id,
@@ -307,7 +307,7 @@ const downloadPhoto = async (photo, client) => {
     },
   );
 
-  fs.writeFileSync("output.jpg", buffer);
+  fs.writeFileSync(name ? name : "output.jpg", buffer);
 };
 
 const getBestOfCurrentMonth = async (client) => {
@@ -360,24 +360,77 @@ const getBestOfCurrentMonth = async (client) => {
     })
     .sort((mA, mB) => mB.reactionsCnt - mA.reactionsCnt);
 
-  // console.info(
-  //   mappedMessages.map((message) => {
-  //     return {
-  //       title: message.title,
-  //       from: message.from,
-  //       fromId: message.fromId,
-  //       dateFormatted: message.dateFormatted,
-  //       date: message.date,
-  //       // photo: message.media.photo,
-  //       reactionsCnt: message.reactionsCnt,
-  //     };
-  //   }),
-  // );
-
   const bestOfTheMonth = mappedMessages[0];
   await downloadPhoto(bestOfTheMonth.photo, client);
 
   return bestOfTheMonth;
+};
+
+const getBestOfCurrentWeek = async (client) => {
+  await client.connect();
+
+  const req = {
+    peer: process.env.PHOTO_CHANNEL,
+    limit: 100,
+  };
+
+  const result = await client.invoke(new Api.messages.GetHistory(req));
+
+  let mappedMessages = await Promise.all(
+    result.messages.map(async (message) => {
+      let reactionsCnt = 0;
+
+      if (message.reactions) {
+        const reactions = message.reactions.results;
+        reactionsCnt = reactions.map((i) => i.count).reduce((i, j) => i + j, 0);
+      }
+
+      if (message && message.fwdFrom && message.media && message.media.photo) {
+        return {
+          title: message.message,
+          from: message.fwdFrom.fromName,
+          fromId: message.fwdFrom.fromId ? message.fwdFrom.fromId.userId : "",
+          dateFormatted: new Date(message.date * 1000).toDateString(),
+          date: message.date,
+          photo: message.media.photo,
+          reactionsCnt,
+        };
+      }
+
+      return null;
+    }),
+  );
+
+  const now = new Date();
+  const startOfWeekDate = startOfWeek(now);
+
+  mappedMessages = mappedMessages
+    .filter((message) => {
+      return (
+        message &&
+        message.date &&
+        new Date(message.date * 1000) >= new Date(startOfWeekDate)
+      );
+    })
+    .sort((mA, mB) => mB.reactionsCnt - mA.reactionsCnt);
+
+  let length = 0;
+  if (mappedMessages.length >= 6) {
+    length = 6;
+  } else if (mappedMessages.length >= 4) {
+    length = 4;
+  } else if (mappedMessages.length >= 2) {
+    length = 2;
+  }
+
+  for (let i = 0; i < length; i++) {
+    const message = mappedMessages[i];
+    if (message) {
+      await downloadPhoto(message.photo, client, `output_${i}.jpg`);
+    }
+  }
+
+  return length;
 };
 
 // BOT event listeners
@@ -536,10 +589,27 @@ const setupBotEvents = () => {
     const buffer = fs.readFileSync(`./output_stamp.jpg`);
 
     bot.sendPhoto(chatId, buffer, {
-      caption: `Top photo for ${format(prevMonth, "MMMM yyyy")} with ${
+      caption: `Top photo of ${format(prevMonth, "MMMM yyyy")} with ${
         bestOfTheMonth.reactionsCnt
       } likes`,
     });
+  });
+
+  bot.onText(/^get_best_of_week$/i, async (msg) => {
+    const chatId = msg.chat.id;
+
+    const client = await login();
+    const imagesLength = await getBestOfCurrentWeek(client);
+
+    for (let i = 0; i <= imagesLength; i++) {
+      const buffer = fs.readFileSync(`output_${i}.jpg`);
+
+      bot.sendPhoto(chatId, buffer, {
+        caption: `${i}`,
+      });
+    }
+
+    // await messWithImages();
   });
 
   bot.onText(/^show_fwd_queue$/i, async (msg) => {
