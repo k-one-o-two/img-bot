@@ -308,10 +308,9 @@ const login = async () => {
     password: async () => await input.text("password?"),
     phoneCode: async () => await input.text("Code ?"),
     onError: (err) => console.log(err),
-
-    // botAuthToken: token,
   });
-  console.log(client.session.save());
+
+  console.info(client);
 
   return client;
 };
@@ -738,8 +737,6 @@ function randomIntFromInterval(min, max) {
 }
 
 console.info("starting...");
-
-login();
 
 const bot = createBot();
 setupBotEvents();
