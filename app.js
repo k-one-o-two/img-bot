@@ -38,6 +38,7 @@ const nerdsbayPhoto = process.env.PHOTO_CHANNEL;
 const confirmMessage = "ok";
 
 const fwdQueue = db.collection("fwdQueue");
+const laterQueue = db.collection("laterQueue");
 
 const themes = db.collection("themes");
 const constraints = db.collection("constraints");
@@ -565,6 +566,49 @@ const setupBotEvents = () => {
     }
   });
 
+  // confirm: later
+  bot.onText(/^later\s?(.*)/i, (msg, match) => {
+    console.log(new Date().toString(), " BOT got message");
+    const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
+    const comment = match[1]; // the captured "comment"
+
+    if (isAdminGroupMessage) {
+      if (!checkMessage(msg)) {
+        return;
+      }
+
+      const original = msg.reply_to_message;
+      const fileId = getFileId(original);
+
+      try {
+        laterQueue.insert({
+          chatId: msg.chat.id,
+          messageId: original.message_id,
+        });
+      } catch (e) {
+        console.log("forward failed: ", e);
+      }
+      approvedArray.insert({ fileId });
+
+      const savedUser = getUserByFile(fileId);
+      if (savedUser) {
+        try {
+          bot.sendMessage(
+            savedUser.user,
+            `Спасибо, материал одобрен, но будет отправлен в ближайшую субботу. ${
+              comment ? `Комментарий: "${comment}"` : ""
+            }`,
+            {
+              reply_to_message_id: savedUser.msgId,
+            },
+          );
+        } catch (e) {
+          console.log("replying to user failed: ", e);
+        }
+      }
+    }
+  });
+
   // reject
   bot.onText(/^no (.+)/i, (msg, match) => {
     console.log(new Date().toString(), " BOT got reject text");
@@ -642,8 +686,12 @@ const setupBotEvents = () => {
     }
 
     const messages = fwdQueue.where().items;
+    const delayedMessages = laterQueue.where().items;
 
-    bot.sendMessage(chatId, `I have ${messages.length} in my fwdQueue`);
+    bot.sendMessage(
+      chatId,
+      `I have ${messages.length} in my fwdQueue and ${delayedMessages.length} in my laterQueue`,
+    );
   });
 
   bot.onText(/^\+theme\s(.*)/, (msg, match) => {
@@ -736,19 +784,33 @@ function randomIntFromInterval(min, max) {
   return Math.floor(Math.random() * (max - min + 1) + min);
 }
 
-console.info("starting...");
-
 const bot = createBot();
 setupBotEvents();
 
 const tick = () => {
   const messages = fwdQueue.where().items;
+  const laterMessages = laterQueue.where().items;
+
+  const isSaturday = new Date().getDay() === 6;
+
+  if (isSaturday && laterMessages && laterMessages.length) {
+    const message = laterMessages[0];
+    const cid = message.cid;
+
+    bot.sendMessage(
+      nerdsbayPhotoAdmins,
+      `Отправляю из отложенного ${message.messageId}, cid: ${cid}`,
+    );
+
+    bot.forwardMessage(nerdsbayPhoto, message.chatId, message.messageId);
+
+    laterQueue.remove(cid);
+    laterQueue.save();
+  }
 
   if (!messages || !messages.length) {
     return;
   }
-
-  bot.sendMessage(nerdsbayPhotoAdmins, `У меня ${messages.length} в очереди`);
 
   const message = messages[0];
   const cid = message.cid;
@@ -757,14 +819,6 @@ const tick = () => {
     nerdsbayPhotoAdmins,
     `Отправляю ${message.messageId}, cid: ${cid}`,
   );
-
-  // {
-  //   chatId: -4226153478,
-  //   messageId: 9525,
-  //   cid: 0,
-  //   '$created': '2025-04-01T15:32:59.348Z',
-  //   '$updated': '2025-04-01T15:32:59.348Z'
-  // }
 
   bot.forwardMessage(nerdsbayPhoto, message.chatId, message.messageId);
 
