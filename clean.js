@@ -8,12 +8,12 @@ const rejectedArray = db.collection("rejectedArray");
 const run = () => {
   const entries = chatsArray.items;
   entries.forEach((entry) => {
-    const { fileId } = entry;
+    const { fileId, cid } = entry;
 
     const isRejected = rejectedArray.where({ fileId }).length();
     const isApproved = approvedArray.where({ fileId }).length();
 
-    console.info({ sid }, { isRejected }, { isApproved });
+    console.info({ cid }, { isRejected }, { isApproved });
 
     // chatsArray.remove(entry.cid);
   });
