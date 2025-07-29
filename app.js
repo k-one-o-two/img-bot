@@ -708,17 +708,26 @@ const setupBotEvents = () => {
     const chatId = msg.chat.id;
     const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
 
-    if (!isAdminGroupMessage) {
-      return;
-    }
+    // if (!isAdminGroupMessage) {
+    //   return;
+    // }
 
-    const messages = fwdQueue.where().items;
-    const delayedMessages = laterQueue.where().items;
+    const messages = chatsArray.where().items;
 
-    bot.sendMessage(
-      chatId,
-      `I have ${messages.length} in my fwdQueue and ${delayedMessages.length} in my laterQueue`,
-    );
+    messages.forEach((message) => {
+      bot.forwardMessage(chatId, message.user, message.msgId);
+
+      // console.log(message);
+      // bot.sendMessage(
+      //   chatId,
+      //   `I have ${messages.length} in my fwdQueue and ${delayedMessages.length} in my laterQueue`,
+      // );
+    });
+
+    // bot.sendMessage(
+    //   chatId,
+    //   `I have ${messages.length} in my fwdQueue and ${delayedMessages.length} in my laterQueue`,
+    // );
   });
 
   bot.onText(/^\+theme\s(.*)/, (msg, match) => {
