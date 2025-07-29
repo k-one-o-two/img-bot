@@ -550,6 +550,10 @@ const setupBotEvents = () => {
       const savedUser = getUserByFile(fileId);
       if (savedUser) {
         try {
+          const cid = savedUser.cid;
+          chatsArray.remove(cid);
+          chatsArray.save();
+
           bot.sendMessage(
             savedUser.user,
             `Спасибо, материал одобрен, возможна очередь отправки. ${
@@ -593,6 +597,9 @@ const setupBotEvents = () => {
       const savedUser = getUserByFile(fileId);
       if (savedUser) {
         try {
+          chatsArray.remove(cid);
+          chatsArray.save();
+
           bot.sendMessage(
             savedUser.user,
             `Спасибо, материал одобрен, но будет отправлен в ближайшую субботу. ${
@@ -629,6 +636,9 @@ const setupBotEvents = () => {
 
       if (savedUser) {
         try {
+          chatsArray.remove(cid);
+          chatsArray.save();
+
           bot.sendMessage(
             savedUser.user,
             `Материал не опубликован, причина: "${resp}"`,
@@ -678,6 +688,23 @@ const setupBotEvents = () => {
   });
 
   bot.onText(/^show_fwd_queue$/i, async (msg) => {
+    const chatId = msg.chat.id;
+    const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
+
+    if (!isAdminGroupMessage) {
+      return;
+    }
+
+    const messages = fwdQueue.where().items;
+    const delayedMessages = laterQueue.where().items;
+
+    bot.sendMessage(
+      chatId,
+      `I have ${messages.length} in my fwdQueue and ${delayedMessages.length} in my laterQueue`,
+    );
+  });
+
+  bot.onText(/^show_chats_array$/i, async (msg) => {
     const chatId = msg.chat.id;
     const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
 

@@ -1,16 +1,26 @@
-const locallydb = require('locallydb');
-const db = new locallydb('./mydb');
+const locallydb = require("locallydb");
+const db = new locallydb("./mydb");
 
-const bestOf24Array = db.collection('bestOf24Array');
+const chatsArray = db.collection("chatsArray");
+const approvedArray = db.collection("approvedArray");
+const rejectedArray = db.collection("rejectedArray");
 
 const run = () => {
-  bestOf24Array.remove(0);
-  bestOf24Array.remove(1);
-  bestOf24Array.save();
+  const entries = chatsArray.items;
+  entries.forEach((entry) => {
+    const { fileId } = entry;
 
-  const entries = bestOf24Array.items;
+    const isRejected = rejectedArray.where({ fileId }).length();
+    const isApproved = approvedArray.where({ fileId }).length();
 
-  console.log(entries);
+    console.info({ sid }, { isRejected }, { isApproved });
+
+    // chatsArray.remove(entry.cid);
+  });
+
+  // chatsArray.save();
+
+  // console.log(entries);
 };
 
 run();
