@@ -739,11 +739,13 @@ const setupBotEvents = () => {
     const chatId = msg.chat.id;
     const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
 
-    if (!isAdminGroupMessage) {
-      return;
-    }
+    // if (!isAdminGroupMessage) {
+    //   return;
+    // }
 
     const messages = chatsArray.where().items;
+
+    console.info(`found ${messages.length} messages`);
 
     messages.forEach((message) => {
       bot.forwardMessage(chatId, message.user, message.msgId);
