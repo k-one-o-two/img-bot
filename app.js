@@ -597,6 +597,7 @@ const setupBotEvents = () => {
       const savedUser = getUserByFile(fileId);
       if (savedUser) {
         try {
+          const cid = savedUser.cid;
           chatsArray.remove(cid);
           chatsArray.save();
 
@@ -636,6 +637,7 @@ const setupBotEvents = () => {
 
       if (savedUser) {
         try {
+          const cid = savedUser.cid;
           chatsArray.remove(cid);
           chatsArray.save();
 
@@ -644,6 +646,35 @@ const setupBotEvents = () => {
             `Материал не опубликован, причина: "${resp}"`,
             { reply_to_message_id: savedUser.msgId },
           );
+        } catch (e) {
+          console.log("replying to user failed: ", e);
+        }
+      }
+    }
+  });
+
+  // reject
+  bot.onText(/^forget$/i, (msg, match) => {
+    console.log(new Date().toString(), " BOT got reject text");
+    const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
+
+    if (isAdminGroupMessage) {
+      if (!checkMessage(msg)) {
+        return;
+      }
+
+      const original = msg.reply_to_message;
+      const fileId = getFileId(original);
+
+      rejectedArray.insert({ fileId });
+
+      const savedUser = getUserByFile(fileId);
+
+      if (savedUser) {
+        try {
+          const cid = savedUser.cid;
+          chatsArray.remove(cid);
+          chatsArray.save();
         } catch (e) {
           console.log("replying to user failed: ", e);
         }
@@ -708,26 +739,15 @@ const setupBotEvents = () => {
     const chatId = msg.chat.id;
     const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
 
-    // if (!isAdminGroupMessage) {
-    //   return;
-    // }
+    if (!isAdminGroupMessage) {
+      return;
+    }
 
     const messages = chatsArray.where().items;
 
     messages.forEach((message) => {
       bot.forwardMessage(chatId, message.user, message.msgId);
-
-      // console.log(message);
-      // bot.sendMessage(
-      //   chatId,
-      //   `I have ${messages.length} in my fwdQueue and ${delayedMessages.length} in my laterQueue`,
-      // );
     });
-
-    // bot.sendMessage(
-    //   chatId,
-    //   `I have ${messages.length} in my fwdQueue and ${delayedMessages.length} in my laterQueue`,
-    // );
   });
 
   bot.onText(/^\+theme\s(.*)/, (msg, match) => {
