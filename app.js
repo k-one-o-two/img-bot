@@ -676,7 +676,7 @@ const setupBotEvents = () => {
           chatsArray.remove(cid);
           chatsArray.save();
         } catch (e) {
-          console.log("replying to user failed: ", e);
+          console.log("removing chat failed: ", e);
         }
       }
     }

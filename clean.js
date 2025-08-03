@@ -15,11 +15,11 @@ const run = () => {
 
     console.info({ cid }, { isRejected }, { isApproved });
 
-    if (isRejected || isApproved) {
-      console.info(`Removing chat ${cid}`);
-      chatsArray.remove(cid);
-      chatsArray.save();
-    }
+    // if (isRejected || isApproved) {
+    console.info(`Removing chat ${cid}`);
+    chatsArray.remove(cid);
+    chatsArray.save();
+    // }
 
     // chatsArray.remove(entry.cid);
   });
