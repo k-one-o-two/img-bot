@@ -477,11 +477,9 @@ const setupBotEvents = () => {
 
     console.log(new Date().toString(), " BOT got photo");
 
-    bot.sendMessage(
-      chatId,
-      `Я получил фотографию и отправил её на рассмотрение`,
-      { reply_to_message_id: msg.message_id },
-    );
+    bot.sendMessage(chatId, `The photo has been sent for approval`, {
+      reply_to_message_id: msg.message_id,
+    });
 
     chatsArray.insert({
       user: chatId,
@@ -506,7 +504,7 @@ const setupBotEvents = () => {
     console.log(new Date().toString(), " BOT got vide");
     const chatId = msg.chat.id;
 
-    bot.sendMessage(chatId, `Я получил видео и отправил его на рассмотрение`, {
+    bot.sendMessage(chatId, `The video has been sent for approval`, {
       reply_to_message_id: msg.message_id,
     });
 
@@ -556,8 +554,8 @@ const setupBotEvents = () => {
 
           bot.sendMessage(
             savedUser.user,
-            `Спасибо, материал одобрен, возможна очередь отправки. ${
-              comment ? `Комментарий: "${comment}"` : ""
+            `The photo has been approved and added to the queue. ${
+              comment ? `Comment from admins: "${comment}"` : ""
             }`,
             {
               reply_to_message_id: savedUser.msgId,
@@ -603,8 +601,8 @@ const setupBotEvents = () => {
 
           bot.sendMessage(
             savedUser.user,
-            `Спасибо, материал одобрен, но будет отправлен в ближайшую субботу. ${
-              comment ? `Комментарий: "${comment}"` : ""
+            `The photo has been approved to be send next Saturday (off-topic day). ${
+              comment ? `Comment from admins: "${comment}"` : ""
             }`,
             {
               reply_to_message_id: savedUser.msgId,
@@ -643,7 +641,7 @@ const setupBotEvents = () => {
 
           bot.sendMessage(
             savedUser.user,
-            `Материал не опубликован, причина: "${resp}"`,
+            `The photo has been rejected, reason: "${resp}"`,
             { reply_to_message_id: savedUser.msgId },
           );
         } catch (e) {
@@ -861,7 +859,7 @@ const tick = () => {
 
     bot.sendMessage(
       nerdsbayPhotoAdmins,
-      `Отправляю из отложенного ${message.messageId}, cid: ${cid}`,
+      `Sending from delayed ${message.messageId}, cid: ${cid}`,
     );
 
     bot.forwardMessage(nerdsbayPhoto, message.chatId, message.messageId);
@@ -879,7 +877,7 @@ const tick = () => {
 
   bot.sendMessage(
     nerdsbayPhotoAdmins,
-    `Отправляю ${message.messageId}, cid: ${cid}`,
+    `Sending ${message.messageId}, cid: ${cid}`,
   );
 
   bot.forwardMessage(nerdsbayPhoto, message.chatId, message.messageId);
