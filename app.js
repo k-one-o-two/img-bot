@@ -777,7 +777,7 @@ const setupBotEvents = () => {
 
     const rulesContent = fs.readFileSync("rules.txt", "utf8");
 
-    bot.sendMessage(chatId, sendMessage);
+    bot.sendMessage(chatId, rulesContent);
   });
 
   bot.onText(/^show_chats_array$/i, async (msg) => {
