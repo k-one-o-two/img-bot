@@ -49,6 +49,8 @@ const chatsArray = db.collection("chatsArray");
 const approvedArray = db.collection("approvedArray");
 const rejectedArray = db.collection("rejectedArray");
 
+const bannedArray = db.collection("bannedArray");
+
 const bestOf24Array = db.collection("bestOf24Array");
 const votedList = db.collection("votedList");
 
@@ -680,6 +682,43 @@ const setupBotEvents = () => {
     }
   });
 
+  // TODO
+  //
+  // bot.onText(/^ban$/i, (msg, match) => {
+  //   console.log(new Date().toString(), " BOT got ban text");
+  //   const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
+
+  //   if (isAdminGroupMessage) {
+  //     if (!checkMessage(msg)) {
+  //       return;
+  //     }
+
+  //     const chatId = msg.chat.id;
+
+  //     const original = msg.reply_to_message;
+  //     const fileId = getFileId(original);
+
+  //     bannedArray.insert(savedUser.user);
+
+  //     const savedUser = getUserByFile(fileId);
+
+  //     if (savedUser) {
+  //       try {
+  //         const cid = savedUser.cid;
+  //         chatsArray.remove(cid);
+  //         chatsArray.save();
+
+  //         bot.sendMessage(
+  //           chatId,
+  //           `The user ${savedUser.user} has been banned.`,
+  //         );
+  //       } catch (e) {
+  //         console.log("removing chat failed: ", e);
+  //       }
+  //     }
+  //   }
+  // });
+
   bot.onText(/^get_best_of_month$/i, async (msg) => {
     const chatId = msg.chat.id;
 
@@ -731,6 +770,14 @@ const setupBotEvents = () => {
       chatId,
       `I have ${messages.length} in my fwdQueue and ${delayedMessages.length} in my laterQueue`,
     );
+  });
+
+  bot.onText(/^rules$/i, async (msg) => {
+    const chatId = msg.chat.id;
+
+    const rulesContent = fs.readFileSync("rules.txt", "utf8");
+
+    bot.sendMessage(chatId, sendMessage);
   });
 
   bot.onText(/^show_chats_array$/i, async (msg) => {
