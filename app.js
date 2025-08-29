@@ -439,7 +439,9 @@ const getBestOfCurrentWeek = async (client) => {
     .sort((mA, mB) => mB.reactionsCnt - mA.reactionsCnt);
 
   let length = 0;
-  if (mappedMessages.length >= 6) {
+  if (mappedMessages.length >= 9) {
+    length = 9;
+  } else if (mappedMessages.length >= 6) {
     length = 6;
   } else if (mappedMessages.length >= 4) {
     length = 4;
