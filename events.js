@@ -1,215 +1,67 @@
-const _ = require("lodash");
+import fs from "fs";
+import { collections } from "./storage";
+import { utils } from "./utils";
+import { settings } from "./settings";
+import { subMonths, format } from "date-fns";
 
-const locallydb = require("locallydb");
-const db = new locallydb("./mydb");
-
-const dotenv = require("dotenv");
-dotenv.config();
-
-const token = process.env.TOKEN;
-const nerdsbayPhotoAdmins = process.env.ADMIN_GROUP_ID;
-const nerdsbayPhoto = process.env.PHOTO_CHANNEL;
-
-const chatsArray = db.collection("chatsArray");
-const approvedArray = db.collection("approvedArray");
-const mediaGroups = db.collection("mediaGroups");
-const fwdQueue = db.collection("fwdQueue");
-
-const { messWithImages } = require("./img");
-
-const logObject = (obj) => console.log(JSON.stringify(obj, undefined, 2));
-
-const getFileInfo = async (file_id) => {
-  const url = `https://api.telegram.org/bot${token}/getFile?file_id=${file_id}`;
-
-  const result = await fetch(url);
-  const fileData = await result.json();
-
-  return fileData;
-};
-
-const downloadFile = async (file_path, chatId) => {
-  const url = `https://api.telegram.org/file/bot${token}/${file_path}`;
-  const fileName = file_path.replaceAll("/", "_");
-
-  const response = await fetch(url);
-  const stream = Readable.fromWeb(response.body);
-  const result = await writeFile(`./24/${chatId}_${fileName}`, stream);
-
-  return result;
-};
-
-const userHasVoted = (msg) => {
-  const user = msg.from.id;
-  const foundInCollection = votedList.where({ user_id: user }).items;
-
-  if (foundInCollection.length) {
-    return true;
-  }
-
-  return false;
-};
-
-const getUserByFile = (fileId) => {
-  const list = chatsArray.where({ fileId });
-  if (list.length() === 0) {
-    return null;
-  }
-
-  return list.items[0];
-};
-
-const getFileId = (msg) => {
-  const isPhoto = !!msg.photo;
-  const isVideo = !!msg.video;
-
-  if (isPhoto) {
-    return msg.photo[0].file_unique_id;
-  } else if (isVideo) {
-    return msg.video.file_unique_id;
-  } else {
-    // noting to reply to
-    return;
-  }
-};
-
-const checkMessage = (msg) => {
-  const chatId = msg.chat.id;
-  const original = msg.reply_to_message;
-
-  if (!original) {
-    bot.sendMessage(chatId, "Не найдено оригинальное сообщение");
-    return false;
-  }
-
-  const fileId = getFileId(original);
-  if (approvedArray.where({ fileId }).length()) {
-    bot.sendMessage(chatId, "Эта фотография уже была принята");
-    return false;
-  }
-
-  if (rejectedArray.where({ fileId }).length()) {
-    bot.sendMessage(chatId, "Эта фотография уже была отклонена");
-    return false;
-  }
-
-  return true;
-};
-
-// const getLastGroupId = () => {
-//   const last = mediaGroups.items[mediaGroups.items.length - 1];
-//   return last.media_group_id;
-// };
-//
-const sendGroup = (group_id) => {
-  console.info("sendGroup", group_id);
-  const messages = mediaGroups.where({ media_group_id: group_id }).items;
-
-  console.log(messages);
-
-  const cids = messages.map((m) => m.cid);
-
-  // mediaGroups
-  // const chatId = messages[0].msg.chat.id;
-
-  bot.sendMediaGroup(
-    chatId,
-    messages.map((m) => m.msg),
-  );
-
-  cids.forEach((cid) => {
-    mediaGroups.remove(cid);
-  });
-};
-
-const setupBotEvents = (bot) => {
+export const setupBotEvents = (bot) => {
   bot.on("photo", (msg) => {
-    // logObject(msg);
-
-    const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
-    if (isAdminGroupMessage) {
+    if (utils.isInAdminGroup(msg)) {
       return;
     }
 
     const chatId = msg.chat.id;
 
-    // const lastGroupId = getLastGroupId();
-    const media_group_id = msg.media_group_id;
-
-    if (media_group_id) {
-      console.log(
-        new Date().toString(),
-        " BOT got media group ",
-        media_group_id,
-      );
-
-      mediaGroups.insert({
-        media_group_id,
-        msg,
-      });
-      console.info("inserted, debouncing");
-      // _.debounce(() => {
-      //   console.info("debounced");
-      setTimeout(() => {
-        sendGroup(media_group_id);
-      }, 300);
-      // sendGroup(media_group_id);
-      // }, 0);
-    } else {
-      console.log(new Date().toString(), " BOT got photo");
-
+    if (msg.caption === "#24best") {
       bot.sendMessage(
         chatId,
-        `Я получил фотографию и отправил её на рассмотрение`,
+        `Прием фотографий уже закончен, я передам фотографию обычным образом`,
         { reply_to_message_id: msg.message_id },
       );
-
-      chatsArray.insert({
-        user: chatId,
-        fileId: msg.photo[0].file_unique_id,
-        msgId: msg.message_id,
-      });
-
-      try {
-        bot.forwardMessage(nerdsbayPhotoAdmins, msg.chat.id, msg.message_id);
-      } catch (e) {
-        console.log("forward failed: ", e);
-      }
     }
 
-    // if (msg.caption === "#24best") {
-    //   bot.sendMessage(
-    //     chatId,
-    //     `Прием фотографий уже закончен, я передам фотографию обычным образом`,
-    //     { reply_to_message_id: msg.message_id },
-    //   );
-    // }
-
     // normal photo
+
+    console.log(new Date().toString(), " BOT got photo");
+
+    bot.sendMessage(chatId, `The photo has been sent for approval`, {
+      reply_to_message_id: msg.message_id,
+    });
+
+    collections.chatsArray.insert({
+      user: chatId,
+      fileId: msg.photo[0].file_unique_id,
+      msgId: msg.message_id,
+    });
+
+    try {
+      bot.forwardMessage(settings.adminGroup, msg.chat.id, msg.message_id);
+    } catch (e) {
+      console.log("forward failed: ", e);
+    }
   });
 
   bot.on("video", (msg) => {
-    const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
-    if (isAdminGroupMessage) {
+    if (utils.isInAdminGroup(msg)) {
       return;
     }
 
     console.log(new Date().toString(), " BOT got vide");
     const chatId = msg.chat.id;
 
-    bot.sendMessage(chatId, `Я получил видео и отправил его на рассмотрение`, {
+    bot.sendMessage(chatId, `The video has been sent for approval`, {
       reply_to_message_id: msg.message_id,
     });
 
-    chatsArray.insert({
+    collections.chatsArray.insert({
       user: chatId,
       fileId: msg.video.file_unique_id,
       msgId: msg.message_id,
     });
 
     try {
-      bot.forwardMessage(nerdsbayPhotoAdmins, msg.chat.id, msg.message_id);
-    } catch {
+      bot.forwardMessage(settings.adminGroup, msg.chat.id, msg.message_id);
+    } catch (e) {
       console.log("forward failed: ", e);
     }
   });
@@ -217,34 +69,83 @@ const setupBotEvents = (bot) => {
   // confirm
   bot.onText(/^ok\s?(.*)/i, (msg, match) => {
     console.log(new Date().toString(), " BOT got message");
-    const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
     const comment = match[1]; // the captured "comment"
 
-    if (isAdminGroupMessage) {
-      if (!checkMessage(msg)) {
+    if (utils.isInAdminGroup(msg)) {
+      if (!utils.checkMessage(msg)) {
         return;
       }
 
       const original = msg.reply_to_message;
-      const fileId = getFileId(original);
+      const fileId = utils.getFileId(original);
 
       try {
-        fwdQueue.insert({
+        collections.fwdQueue.insert({
           chatId: msg.chat.id,
           messageId: original.message_id,
         });
       } catch (e) {
         console.log("forward failed: ", e);
       }
-      approvedArray.insert({ fileId });
+      collections.approvedArray.insert({ fileId });
 
-      const savedUser = getUserByFile(fileId);
+      const savedUser = utils.getUserByFile(fileId);
       if (savedUser) {
         try {
+          const cid = savedUser.cid;
+          collections.chatsArray.remove(cid);
+          collections.chatsArray.save();
+
           bot.sendMessage(
             savedUser.user,
-            `Спасибо, материал одобрен, возможна очередь отправки. ${
-              comment ? `Комментарий: "${comment}"` : ""
+            `The photo has been approved and added to the queue. ${
+              comment ? `Comment from admins: "${comment}"` : ""
+            }`,
+            {
+              reply_to_message_id: savedUser.msgId,
+            },
+          );
+        } catch (e) {
+          console.log("replying to user failed: ", e);
+        }
+      }
+    }
+  });
+
+  // confirm: later
+  bot.onText(/^later\s?(.*)/i, (msg, match) => {
+    console.log(new Date().toString(), " BOT got message");
+    const comment = match[1]; // the captured "comment"
+
+    if (utils.isInAdminGroup(msg)) {
+      if (!utils.checkMessage(msg)) {
+        return;
+      }
+
+      const original = msg.reply_to_message;
+      const fileId = utils.getFileId(original);
+
+      try {
+        collections.laterQueue.insert({
+          chatId: msg.chat.id,
+          messageId: original.message_id,
+        });
+      } catch (e) {
+        console.log("forward failed: ", e);
+      }
+      collections.approvedArray.insert({ fileId });
+
+      const savedUser = utils.getUserByFile(fileId);
+      if (savedUser) {
+        try {
+          const cid = savedUser.cid;
+          collections.chatsArray.remove(cid);
+          collections.chatsArray.save();
+
+          bot.sendMessage(
+            savedUser.user,
+            `The photo has been approved to be send next Saturday (off-topic day). ${
+              comment ? `Comment from admins: "${comment}"` : ""
             }`,
             {
               reply_to_message_id: savedUser.msgId,
@@ -260,30 +161,61 @@ const setupBotEvents = (bot) => {
   // reject
   bot.onText(/^no (.+)/i, (msg, match) => {
     console.log(new Date().toString(), " BOT got reject text");
-    const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
 
     const resp = match[1]; // the captured "reason"
-    if (isAdminGroupMessage) {
-      if (!checkMessage(msg)) {
+    if (utils.isInAdminGroup(msg)) {
+      if (!utils.checkMessage(msg)) {
         return;
       }
 
       const original = msg.reply_to_message;
-      const fileId = getFileId(original);
+      const fileId = utils.getFileId(original);
 
-      rejectedArray.insert({ fileId });
+      collections.rejectedArray.insert({ fileId });
 
-      const savedUser = getUserByFile(fileId);
+      const savedUser = utils.getUserByFile(fileId);
 
       if (savedUser) {
         try {
+          const cid = savedUser.cid;
+          collections.chatsArray.remove(cid);
+          collections.chatsArray.save();
+
           bot.sendMessage(
             savedUser.user,
-            `Материал не опубликован, причина: "${resp}"`,
+            `The photo has been rejected, reason: "${resp}"`,
             { reply_to_message_id: savedUser.msgId },
           );
         } catch (e) {
           console.log("replying to user failed: ", e);
+        }
+      }
+    }
+  });
+
+  // reject
+  bot.onText(/^forget$/i, (msg) => {
+    console.log(new Date().toString(), " BOT got reject text");
+
+    if (utils.isInAdminGroup(msg)) {
+      if (!utils.checkMessage(msg)) {
+        return;
+      }
+
+      const original = msg.reply_to_message;
+      const fileId = utils.getFileId(original);
+      ``;
+      collections.rejectedArray.insert({ fileId });
+
+      const savedUser = utils.getUserByFile(fileId);
+
+      if (savedUser) {
+        try {
+          const cid = savedUser.cid;
+          collections.chatsArray.remove(cid);
+          collections.chatsArray.save();
+        } catch (e) {
+          console.log("removing chat failed: ", e);
         }
       }
     }
@@ -294,34 +226,78 @@ const setupBotEvents = (bot) => {
 
     const prevMonth = subMonths(new Date(), 1);
 
-    const client = await login();
-    const bestOfTheMonth = await getBestOfCurrentMonth(client);
+    const client = await utils.login();
+    const bestOfTheMonth = await utils.getBestOfCurrentMonth(client);
 
-    await messWithImages();
+    await utils.makePostcard();
 
     const buffer = fs.readFileSync(`./output_stamp.jpg`);
 
     bot.sendPhoto(chatId, buffer, {
-      caption: `Top photo for ${format(prevMonth, "MMMM yyyy")} with ${
+      caption: `Top photo of ${format(prevMonth, "MMMM yyyy")} with ${
         bestOfTheMonth.reactionsCnt
       } likes`,
     });
   });
 
+  bot.onText(/^get_best_of_week$/i, async (msg) => {
+    const chatId = msg.chat.id;
+
+    const client = await utils.login();
+    const imagesLength = await utils.getBestOfCurrentWeek(client);
+
+    await utils.squareImages(imagesLength);
+
+    const buffers = [];
+    for (let i = 0; i < imagesLength; i++) {
+      const buffer = fs.readFileSync(`output_square_${i}.jpg`);
+      buffers.push(buffer);
+
+      bot.sendPhoto(chatId, buffer);
+    }
+  });
+
   bot.onText(/^show_fwd_queue$/i, async (msg) => {
     const chatId = msg.chat.id;
-    const isAdminGroupMessage = msg.chat.id.toString() === nerdsbayPhotoAdmins;
 
-    if (!isAdminGroupMessage) {
+    if (!utils.isInAdminGroup(msg)) {
       return;
     }
 
-    const messages = fwdQueue.where().items;
+    const messages = collections.fwdQueue.where().items;
+    const delayedMessages = collections.laterQueue.where().items;
 
-    bot.sendMessage(chatId, `I have ${messages.length} in my fwdQueue`);
+    bot.sendMessage(
+      chatId,
+      `I have ${messages.length} in my fwdQueue and ${delayedMessages.length} in my laterQueue`,
+    );
   });
 
-  // bot
-};
+  bot.onText(/^rules$/i, async (msg) => {
+    const chatId = msg.chat.id;
 
-module.exports = { setupBotEvents };
+    const rulesContent = fs.readFileSync("rules.txt", "utf8");
+
+    bot.sendMessage(chatId, rulesContent);
+  });
+
+  bot.onText(/^show_chats_array$/i, async (msg) => {
+    const chatId = msg.chat.id;
+
+    if (!utils.isInAdminGroup(msg)) {
+      return;
+    }
+
+    const messages = collections.chatsArray.where().items;
+
+    console.info(`found ${messages.length} messages`);
+
+    if (!messages.length) {
+      bot.sendMessage(chatId, "all good, no unchecked messages");
+    }
+
+    messages.forEach((message) => {
+      bot.forwardMessage(chatId, message.user, message.msgId);
+    });
+  });
+};

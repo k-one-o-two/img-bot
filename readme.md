@@ -12,15 +12,22 @@ These must be send as a response to a message with a photo or video.
 
 These may be sent freely
 * `get_best_of_month` - gets bets (most liked) image of the previous month, makes a postcard out of it, sends back. this operation is not fast.
-* `get_best_of_week` - gets 6, 4 or 2 best picks of the current week, makes them square, sends back. not fast as well.
+* `get_best_of_week` - gets 9, 6, 4 or 2 best picks of the current week, makes them square, sends back. not fast as well.
 * `show_fwd_queue` - outputs the state of queues.
 * `show_chats_array` - forwards the messages that were neither approved nor rejected.
 
-The queue is checked every half an hour.
+The queue is checked every half an hour (see settings.js).
 
-Theme related commands, not really in use:
-* `+theme THEME` - adds THEME to the array of themes.
-* `+constraint CONSTRAINT` - adds CONSTRAINT to the array of constraints.
-* `generate_theme` - generates a random "theme constraint" pair.
-* `set` - should be a response message to the generated theme, sets the current theme.
-* `get_current` - gets the current theme.
+**SETUP**
+
+You will need an `.env` file with the following variables:
+
+* BOTID - your bot id
+* TOKEN - your bot token
+* ADMIN_GROUP_ID - id of the admin group
+* PHOTO_CHANNEL - name or id of your target channel
+* API_ID - app id for the telegram Api
+* API_HASH - app hash for the telegram Api
+* P_CODE - your phone code (example: +358)
+* PHONE - your phone number **with** code
+* PASS - your telegram password
