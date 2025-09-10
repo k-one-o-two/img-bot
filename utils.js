@@ -1,11 +1,13 @@
 import writeFile from "fs/promises";
 import fs from "fs";
 import { Readable } from "stream";
-import { collections } from "./storage";
+import { collections } from "./storage.js";
 import { Jimp, loadFont } from "jimp";
-import { settings } from "./settings";
+import { settings } from "./settings.js";
 import { subMonths, startOfWeek, startOfMonth } from "date-fns";
-import { Api, TelegramClient, StoreSession } from "telegram";
+// import { Api, TelegramClient, StoreSession } from "telegram";
+import pkg from "telegram";
+const { Api, TelegramClient, StoreSession } = pkg;
 import TelegramBot from "node-telegram-bot-api";
 import input from "input";
 

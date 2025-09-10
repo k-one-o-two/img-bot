@@ -1,7 +1,7 @@
 import fs from "fs";
-import { collections } from "./storage";
-import { utils } from "./utils";
-import { settings } from "./settings";
+import { collections } from "./storage.js";
+import { utils } from "./utils.js";
+import { settings } from "./settings.js";
 import { subMonths, format } from "date-fns";
 
 export const setupBotEvents = (bot) => {

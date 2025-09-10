@@ -1,10 +1,10 @@
-import { setupBotEvents } from "./events";
-import { utils } from "./utils";
-import { settings } from "./settings";
-import { collections } from "collections";
+import { setupBotEvents } from "./events.js";
+import { utils } from "./utils.js";
+import { settings } from "./settings.js";
+import { collections } from "./storage.js";
 
 const bot = utils.createBot();
-setupBotEvents();
+setupBotEvents(bot);
 
 const tick = () => {
   const messages = collections.fwdQueue.where().items;
