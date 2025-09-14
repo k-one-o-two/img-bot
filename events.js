@@ -6,7 +6,9 @@ import { settings } from "./settings.js";
 import { subMonths, format } from "date-fns";
 
 export const setupBotEvents = (bot) => {
+  console.log("setupBotEvents");
   bot.on("photo", async (msg) => {
+    console.log("event: photo");
     if (utils.isInAdminGroup(msg)) {
       return;
     }
