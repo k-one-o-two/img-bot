@@ -34,6 +34,9 @@ const tick = async () => {
       message.messageId,
     );
 
+    const fileId = utils.getFileId(message);
+    await collections.later.deleteOne({ fileId });
+
     // collections.laterQueue.remove(cid);
     // collections.laterQueue.save();
   }
@@ -51,6 +54,9 @@ const tick = async () => {
   );
 
   bot.forwardMessage(settings.photoChannel, message.chatId, message.messageId);
+
+  const fileId = utils.getFileId(message);
+  await collections.fwd.deleteOne({ fileId });
 
   // collections.fwdQueue.remove(cid);
   // collections.fwdQueue.save();
