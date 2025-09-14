@@ -2,7 +2,8 @@ import { setupBotEvents } from "./events.js";
 import { utils } from "./utils.js";
 import { settings } from "./settings.js";
 // import { collections } from "./storage.js"
-const express = require("express");
+// const express = require("express");
+import express from "express";
 const app = express();
 app.get("/", (req, res) => {
   res.send("Express on Vercel");
