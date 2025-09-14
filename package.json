@@ -25,6 +25,7 @@
     "input": "^1.0.1",
     "jimp": "^1.6.0",
     "locallydb": "^0.0.9",
+    "mongodb": "^6.19.0",
     "node-telegram-bot-api": "^0.66.0",
     "nodemon": "^3.1.4",
     "telegram": "^2.26.16"

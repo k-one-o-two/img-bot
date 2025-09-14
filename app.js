@@ -1,14 +1,21 @@
 import { setupBotEvents } from "./events.js";
 import { utils } from "./utils.js";
 import { settings } from "./settings.js";
-import { collections } from "./storage.js";
+// import { collections } from "./storage.js";
+
+import { connectToDatabase } from "./db.js";
 
 const bot = utils.createBot();
 setupBotEvents(bot);
 
-const tick = () => {
-  const messages = collections.fwdQueue.where().items;
-  const laterMessages = collections.laterQueue.where().items;
+const collections = await connectToDatabase();
+
+const tick = async () => {
+  // const messages = collections.fwdQueue.where().items;
+  // const laterMessages = collections.laterQueue.where().items;
+  //
+  const messages = await collections.fwd.find();
+  const laterMessages = await collections.later.find();
 
   const isSaturday = new Date().getDay() === 6;
 
@@ -27,8 +34,8 @@ const tick = () => {
       message.messageId,
     );
 
-    collections.laterQueue.remove(cid);
-    collections.laterQueue.save();
+    // collections.laterQueue.remove(cid);
+    // collections.laterQueue.save();
   }
 
   if (!messages || !messages.length) {
@@ -45,8 +52,8 @@ const tick = () => {
 
   bot.forwardMessage(settings.photoChannel, message.chatId, message.messageId);
 
-  collections.fwdQueue.remove(cid);
-  collections.fwdQueue.save();
+  // collections.fwdQueue.remove(cid);
+  // collections.fwdQueue.save();
 };
 
 setInterval(() => {

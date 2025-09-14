@@ -10,6 +10,7 @@ export const settings = {
   password: process.env.PASS,
   apiId: process.env.API_ID,
   apiHash: process.env.API_HASH,
+  uri: process.env.URI,
 
   interval: 1000 * 60 * 30,
 };

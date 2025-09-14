@@ -1,14 +1,17 @@
 import fs from "fs";
-import { collections } from "./storage.js";
+// import { collections } from "./storage.js";
+import { connectToDatabase } from "./db.js";
 import { utils } from "./utils.js";
 import { settings } from "./settings.js";
 import { subMonths, format } from "date-fns";
 
 export const setupBotEvents = (bot) => {
-  bot.on("photo", (msg) => {
+  bot.on("photo", async (msg) => {
     if (utils.isInAdminGroup(msg)) {
       return;
     }
+
+    const collections = await connectToDatabase();
 
     const chatId = msg.chat.id;
 
@@ -28,11 +31,17 @@ export const setupBotEvents = (bot) => {
       reply_to_message_id: msg.message_id,
     });
 
-    collections.chatsArray.insert({
+    await collections.queue.insertOne({
       user: chatId,
       fileId: msg.photo[0].file_unique_id,
       msgId: msg.message_id,
     });
+
+    // collections.chatsArray.insert({
+    //   user: chatId,
+    //   fileId: msg.photo[0].file_unique_id,
+    //   msgId: msg.message_id,
+    // });
 
     try {
       bot.forwardMessage(settings.adminGroup, msg.chat.id, msg.message_id);
@@ -41,10 +50,11 @@ export const setupBotEvents = (bot) => {
     }
   });
 
-  bot.on("video", (msg) => {
+  bot.on("video", async (msg) => {
     if (utils.isInAdminGroup(msg)) {
       return;
     }
+    const collections = await connectToDatabase();
 
     console.log(new Date().toString(), " BOT got vide");
     const chatId = msg.chat.id;
@@ -53,11 +63,17 @@ export const setupBotEvents = (bot) => {
       reply_to_message_id: msg.message_id,
     });
 
-    collections.chatsArray.insert({
+    await collections.queue.insertOne({
       user: chatId,
       fileId: msg.video.file_unique_id,
       msgId: msg.message_id,
     });
+
+    // collections.chatsArray.insert({
+    //   user: chatId,
+    //   fileId: msg.video.file_unique_id,
+    //   msgId: msg.message_id,
+    // });
 
     try {
       bot.forwardMessage(settings.adminGroup, msg.chat.id, msg.message_id);
@@ -67,34 +83,41 @@ export const setupBotEvents = (bot) => {
   });
 
   // confirm
-  bot.onText(/^ok\s?(.*)/i, (msg, match) => {
+  bot.onText(/^ok\s?(.*)/i, async (msg, match) => {
     console.log(new Date().toString(), " BOT got message");
     const comment = match[1]; // the captured "comment"
 
     if (utils.isInAdminGroup(msg)) {
-      if (!utils.checkMessage(msg)) {
+      if (!(await utils.checkMessage(msg, bot))) {
         return;
       }
+
+      const collections = await connectToDatabase();
 
       const original = msg.reply_to_message;
       const fileId = utils.getFileId(original);
 
       try {
-        collections.fwdQueue.insert({
+        await collections.fwd.insertOne({
           chatId: msg.chat.id,
           messageId: original.message_id,
         });
+        // collections.fwdQueue.insert({
+        //   chatId: msg.chat.id,
+        //   messageId: original.message_id,
+        // });
       } catch (e) {
         console.log("forward failed: ", e);
       }
-      collections.approvedArray.insert({ fileId });
+      await collections.approved.insertOne({ fileId });
+      // collections.approvedArray.insert({ fileId });
 
-      const savedUser = utils.getUserByFile(fileId);
+      const savedUser = await utils.getUserByFile(fileId);
       if (savedUser) {
         try {
-          const cid = savedUser.cid;
-          collections.chatsArray.remove(cid);
-          collections.chatsArray.save();
+          // const cid = savedUser.cid;
+          // collections.chatsArray.remove(cid);
+          // collections.chatsArray.save();
 
           bot.sendMessage(
             savedUser.user,
@@ -113,34 +136,43 @@ export const setupBotEvents = (bot) => {
   });
 
   // confirm: later
-  bot.onText(/^later\s?(.*)/i, (msg, match) => {
+  bot.onText(/^later\s?(.*)/i, async (msg, match) => {
     console.log(new Date().toString(), " BOT got message");
     const comment = match[1]; // the captured "comment"
 
     if (utils.isInAdminGroup(msg)) {
-      if (!utils.checkMessage(msg)) {
+      if (!(await utils.checkMessage(msg, bot))) {
         return;
       }
+
+      const collections = await connectToDatabase();
 
       const original = msg.reply_to_message;
       const fileId = utils.getFileId(original);
 
       try {
-        collections.laterQueue.insert({
+        await collections.later.insertOne({
           chatId: msg.chat.id,
           messageId: original.message_id,
         });
+
+        // collections.laterQueue.insert({
+        //   chatId: msg.chat.id,
+        //   messageId: original.message_id,
+        // });
       } catch (e) {
         console.log("forward failed: ", e);
       }
-      collections.approvedArray.insert({ fileId });
+      await collections.approved.insertOne({ fileId });
+      // collections.approvedArray.insert({ fileId });
 
-      const savedUser = utils.getUserByFile(fileId);
+      const savedUser = await utils.getUserByFile(fileId);
       if (savedUser) {
         try {
-          const cid = savedUser.cid;
-          collections.chatsArray.remove(cid);
-          collections.chatsArray.save();
+          await collections.queue.deleteOne({ fileId });
+          // const cid = savedUser.cid;
+          // collections.chatsArray.remove(cid);
+          // collections.chatsArray.save();
 
           bot.sendMessage(
             savedUser.user,
@@ -159,27 +191,31 @@ export const setupBotEvents = (bot) => {
   });
 
   // reject
-  bot.onText(/^no (.+)/i, (msg, match) => {
+  bot.onText(/^no (.+)/i, async (msg, match) => {
     console.log(new Date().toString(), " BOT got reject text");
 
     const resp = match[1]; // the captured "reason"
     if (utils.isInAdminGroup(msg)) {
-      if (!utils.checkMessage(msg)) {
+      if (!(await utils.checkMessage(msg, bot))) {
         return;
       }
 
       const original = msg.reply_to_message;
       const fileId = utils.getFileId(original);
 
-      collections.rejectedArray.insert({ fileId });
+      const collections = await connectToDatabase();
 
-      const savedUser = utils.getUserByFile(fileId);
+      await collections.rejected.insertOne({ fileId });
+      // collections.rejectedArray.insert({ fileId });
+
+      const savedUser = await utils.getUserByFile(fileId);
 
       if (savedUser) {
         try {
-          const cid = savedUser.cid;
-          collections.chatsArray.remove(cid);
-          collections.chatsArray.save();
+          await collections.queue.deleteOne({ fileId });
+          // const cid = savedUser.cid;
+          // collections.chatsArray.remove(cid);
+          // collections.chatsArray.save();
 
           bot.sendMessage(
             savedUser.user,
@@ -194,20 +230,23 @@ export const setupBotEvents = (bot) => {
   });
 
   // reject
-  bot.onText(/^forget$/i, (msg) => {
+  bot.onText(/^forget$/i, async (msg) => {
     console.log(new Date().toString(), " BOT got reject text");
 
     if (utils.isInAdminGroup(msg)) {
-      if (!utils.checkMessage(msg)) {
+      if (!(await utils.checkMessage(msg, bot))) {
         return;
       }
+
+      const collections = await connectToDatabase();
 
       const original = msg.reply_to_message;
       const fileId = utils.getFileId(original);
       ``;
-      collections.rejectedArray.insert({ fileId });
+      await collections.rejected.insertOne({ fileId });
+      // collections.rejectedArray.insert({ fileId });
 
-      const savedUser = utils.getUserByFile(fileId);
+      const savedUser = await utils.getUserByFile(fileId);
 
       if (savedUser) {
         try {
@@ -221,41 +260,41 @@ export const setupBotEvents = (bot) => {
     }
   });
 
-  bot.onText(/^get_best_of_month$/i, async (msg) => {
-    const chatId = msg.chat.id;
+  // bot.onText(/^get_best_of_month$/i, async (msg) => {
+  //   const chatId = msg.chat.id;
 
-    const prevMonth = subMonths(new Date(), 1);
+  //   const prevMonth = subMonths(new Date(), 1);
 
-    const client = await utils.login();
-    const bestOfTheMonth = await utils.getBestOfCurrentMonth(client);
+  //   const client = await utils.login();
+  //   const bestOfTheMonth = await utils.getBestOfCurrentMonth(client);
 
-    await utils.makePostcard();
+  //   await utils.makePostcard();
 
-    const buffer = fs.readFileSync(`./output_stamp.jpg`);
+  //   const buffer = fs.readFileSync(`./output_stamp.jpg`);
 
-    bot.sendPhoto(chatId, buffer, {
-      caption: `Top photo of ${format(prevMonth, "MMMM yyyy")} with ${
-        bestOfTheMonth.reactionsCnt
-      } likes`,
-    });
-  });
+  //   bot.sendPhoto(chatId, buffer, {
+  //     caption: `Top photo of ${format(prevMonth, "MMMM yyyy")} with ${
+  //       bestOfTheMonth.reactionsCnt
+  //     } likes`,
+  //   });
+  // });
 
-  bot.onText(/^get_best_of_week$/i, async (msg) => {
-    const chatId = msg.chat.id;
+  // bot.onText(/^get_best_of_week$/i, async (msg) => {
+  //   const chatId = msg.chat.id;
 
-    const client = await utils.login();
-    const imagesLength = await utils.getBestOfCurrentWeek(client);
+  //   const client = await utils.login();
+  //   const imagesLength = await utils.getBestOfCurrentWeek(client);
 
-    await utils.squareImages(imagesLength);
+  //   await utils.squareImages(imagesLength);
 
-    const buffers = [];
-    for (let i = 0; i < imagesLength; i++) {
-      const buffer = fs.readFileSync(`output_square_${i}.jpg`);
-      buffers.push(buffer);
+  //   const buffers = [];
+  //   for (let i = 0; i < imagesLength; i++) {
+  //     const buffer = fs.readFileSync(`output_square_${i}.jpg`);
+  //     buffers.push(buffer);
 
-      bot.sendPhoto(chatId, buffer);
-    }
-  });
+  //     bot.sendPhoto(chatId, buffer);
+  //   }
+  // });
 
   bot.onText(/^show_fwd_queue$/i, async (msg) => {
     const chatId = msg.chat.id;
@@ -264,8 +303,12 @@ export const setupBotEvents = (bot) => {
       return;
     }
 
-    const messages = collections.fwdQueue.where().items;
-    const delayedMessages = collections.laterQueue.where().items;
+    const collections = await connectToDatabase();
+
+    const messages = await collections.fwd.find();
+    const delayedMessages = await collections.later.find();
+    // const messages = collections.fwdQueue.where().items;
+    // const delayedMessages = collections.laterQueue.where().items;
 
     bot.sendMessage(
       chatId,
@@ -288,7 +331,9 @@ export const setupBotEvents = (bot) => {
       return;
     }
 
-    const messages = collections.chatsArray.where().items;
+    const collections = await connectToDatabase();
+
+    const messages = await collections.queue.find();
 
     console.info(`found ${messages.length} messages`);
 

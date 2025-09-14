@@ -1,7 +1,8 @@
 import writeFile from "fs/promises";
 import fs from "fs";
 import { Readable } from "stream";
-import { collections } from "./storage.js";
+// import { collections } from "./storage.js";
+import { connectToDatabase } from "./db.js";
 import { Jimp, loadFont } from "jimp";
 import { settings } from "./settings.js";
 import { subMonths, startOfWeek, startOfMonth } from "date-fns";
@@ -31,26 +32,11 @@ const downloadFile = async (file_path, chatId) => {
   return result;
 };
 
-const userHasVoted = (msg) => {
-  const user = msg.from.id;
-  const foundInCollection = collections.votedList.where({
-    user_id: user,
-  }).items;
+const getUserByFile = async (fileId) => {
+  const collections = await connectToDatabase();
+  const item = await collections.queue.findOne({ fileId });
 
-  if (foundInCollection.length) {
-    return true;
-  }
-
-  return false;
-};
-
-const getUserByFile = (fileId) => {
-  const list = collections.chatsArray.where({ fileId });
-  if (list.length() === 0) {
-    return null;
-  }
-
-  return list.items[0];
+  return item;
 };
 
 const getFileId = (msg) => {
@@ -67,7 +53,8 @@ const getFileId = (msg) => {
   }
 };
 
-const checkMessage = (msg, bot) => {
+const checkMessage = async (msg, bot) => {
+  const collections = await connectToDatabase();
   const chatId = msg.chat.id;
   const original = msg.reply_to_message;
 
@@ -75,14 +62,17 @@ const checkMessage = (msg, bot) => {
     bot.sendMessage(chatId, "Не найдено оригинальное сообщение");
     return false;
   }
-
   const fileId = getFileId(original);
-  if (collections.approvedArray.where({ fileId }).length()) {
+
+  const approveCount = await collections.approved.countDocuments({ fileId });
+  const rejectCount = await collections.rejected.countDocuments({ fileId });
+
+  if (approveCount) {
     bot.sendMessage(chatId, "Эта фотография уже была принята");
     return false;
   }
 
-  if (collections.rejectedArray.where({ fileId }).length()) {
+  if (rejectCount) {
     bot.sendMessage(chatId, "Эта фотография уже была отклонена");
     return false;
   }
@@ -434,7 +424,6 @@ export const utils = {
   makePostcard,
   checkMessage,
   getUserByFile,
-  userHasVoted,
   downloadFile,
   getFileInfo,
   getFileId,
