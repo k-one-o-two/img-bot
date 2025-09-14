@@ -1,7 +1,16 @@
 import { setupBotEvents } from "./events.js";
 import { utils } from "./utils.js";
 import { settings } from "./settings.js";
-// import { collections } from "./storage.js";
+// import { collections } from "./storage.js"
+const express = require("express");
+const app = express();
+app.get("/", (req, res) => {
+  res.send("Express on Vercel");
+});
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
 
 import { connectToDatabase } from "./db.js";
 
@@ -65,3 +74,5 @@ const tick = async () => {
 setInterval(() => {
   tick();
 }, settings.interval);
+
+export default app;
