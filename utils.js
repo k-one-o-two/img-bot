@@ -437,6 +437,7 @@ export const utils = {
   userHasVoted,
   downloadFile,
   getFileInfo,
+  getFileId,
   isInAdminGroup,
   login,
   createBot,

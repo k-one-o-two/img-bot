@@ -1,1 +1,1 @@
-ssh -i ./orcl ubuntu@129.151.215.120
+ssh -o 'ConnectionAttempts 10' -i ./orcl ubuntu@129.151.215.120
