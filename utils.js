@@ -6,11 +6,14 @@ import { connectToDatabase } from "./db.js";
 import { Jimp, loadFont } from "jimp";
 import { settings } from "./settings.js";
 import { subMonths, startOfWeek, startOfMonth } from "date-fns";
-// import { Api, TelegramClient, StoreSession } from "telegram";
-import pkg from "telegram";
-const { Api, TelegramClient, StoreSession } = pkg;
+import { StoreSession } from "telegram/sessions/index.js";
+import { Api, TelegramClient } from "telegram";
+// import telegram from "telegram";
+// const { Api, TelegramClient, StoreSession } = telegram;
 import TelegramBot from "node-telegram-bot-api";
 import input from "input";
+
+// console.info({ telegram });
 
 const getFileInfo = async (file_id) => {
   const url = `https://api.telegram.org/bot${settings.token}/getFile?file_id=${file_id}`;
@@ -210,7 +213,7 @@ const makePostcard = async () => {
   await image.write("output_stamp.jpg");
 };
 
-const squareImages = async (n) => {
+const squareImages = async (n, size) => {
   return await Promise.all(
     [...Array(n).keys()].map(async (i) => {
       const image = await Jimp.read(`output_${i}.jpg`);
@@ -226,7 +229,7 @@ const squareImages = async (n) => {
         image.crop({ y: 0, x: diff / 2, h: height, w: height });
       }
 
-      image.resize({ w: 512, h: 512 }); // resize
+      image.resize({ w: Number(size) || 512, h: Number(size) || 512 }); // resize
 
       return image.write(`output_square_${i}.jpg`);
     }),

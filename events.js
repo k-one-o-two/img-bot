@@ -71,12 +71,6 @@ export const setupBotEvents = (bot) => {
       msgId: msg.message_id,
     });
 
-    // collections.chatsArray.insert({
-    //   user: chatId,
-    //   fileId: msg.video.file_unique_id,
-    //   msgId: msg.message_id,
-    // });
-
     try {
       bot.forwardMessage(settings.adminGroup, msg.chat.id, msg.message_id);
     } catch (e) {
@@ -104,23 +98,14 @@ export const setupBotEvents = (bot) => {
           chatId: msg.chat.id,
           messageId: original.message_id,
         });
-        // collections.fwdQueue.insert({
-        //   chatId: msg.chat.id,
-        //   messageId: original.message_id,
-        // });
       } catch (e) {
         console.log("forward failed: ", e);
       }
       await collections.approved.insertOne({ fileId });
-      // collections.approvedArray.insert({ fileId });
 
       const savedUser = await utils.getUserByFile(fileId);
       if (savedUser) {
         try {
-          // const cid = savedUser.cid;
-          // collections.chatsArray.remove(cid);
-          // collections.chatsArray.save();
-
           bot.sendMessage(
             savedUser.user,
             `The photo has been approved and added to the queue. ${
@@ -157,25 +142,15 @@ export const setupBotEvents = (bot) => {
           chatId: msg.chat.id,
           messageId: original.message_id,
         });
-
-        // collections.laterQueue.insert({
-        //   chatId: msg.chat.id,
-        //   messageId: original.message_id,
-        // });
       } catch (e) {
         console.log("forward failed: ", e);
       }
       await collections.approved.insertOne({ fileId });
-      // collections.approvedArray.insert({ fileId });
 
       const savedUser = await utils.getUserByFile(fileId);
       if (savedUser) {
         try {
           await collections.queue.deleteOne({ fileId });
-          // const cid = savedUser.cid;
-          // collections.chatsArray.remove(cid);
-          // collections.chatsArray.save();
-
           bot.sendMessage(
             savedUser.user,
             `The photo has been approved to be send next Saturday (off-topic day). ${
@@ -208,16 +183,12 @@ export const setupBotEvents = (bot) => {
       const collections = await connectToDatabase();
 
       await collections.rejected.insertOne({ fileId });
-      // collections.rejectedArray.insert({ fileId });
 
       const savedUser = await utils.getUserByFile(fileId);
 
       if (savedUser) {
         try {
           await collections.queue.deleteOne({ fileId });
-          // const cid = savedUser.cid;
-          // collections.chatsArray.remove(cid);
-          // collections.chatsArray.save();
 
           bot.sendMessage(
             savedUser.user,
@@ -246,7 +217,6 @@ export const setupBotEvents = (bot) => {
       const fileId = utils.getFileId(original);
       ``;
       await collections.rejected.insertOne({ fileId });
-      // collections.rejectedArray.insert({ fileId });
 
       const savedUser = await utils.getUserByFile(fileId);
 
@@ -262,41 +232,43 @@ export const setupBotEvents = (bot) => {
     }
   });
 
-  // bot.onText(/^get_best_of_month$/i, async (msg) => {
-  //   const chatId = msg.chat.id;
+  bot.onText(/^get_best_of_month$/i, async (msg) => {
+    const chatId = msg.chat.id;
 
-  //   const prevMonth = subMonths(new Date(), 1);
+    const prevMonth = subMonths(new Date(), 1);
 
-  //   const client = await utils.login();
-  //   const bestOfTheMonth = await utils.getBestOfCurrentMonth(client);
+    const client = await utils.login();
+    const bestOfTheMonth = await utils.getBestOfCurrentMonth(client);
 
-  //   await utils.makePostcard();
+    await utils.makePostcard();
 
-  //   const buffer = fs.readFileSync(`./output_stamp.jpg`);
+    const buffer = fs.readFileSync(`./output_stamp.jpg`);
 
-  //   bot.sendPhoto(chatId, buffer, {
-  //     caption: `Top photo of ${format(prevMonth, "MMMM yyyy")} with ${
-  //       bestOfTheMonth.reactionsCnt
-  //     } likes`,
-  //   });
-  // });
+    bot.sendPhoto(chatId, buffer, {
+      caption: `Top photo of ${format(prevMonth, "MMMM yyyy")} with ${
+        bestOfTheMonth.reactionsCnt
+      } likes`,
+    });
+  });
 
-  // bot.onText(/^get_best_of_week$/i, async (msg) => {
-  //   const chatId = msg.chat.id;
+  bot.onText(/^get_best_of_week\s?(.+)$/i, async (msg, match) => {
+    const chatId = msg.chat.id;
 
-  //   const client = await utils.login();
-  //   const imagesLength = await utils.getBestOfCurrentWeek(client);
+    const size = match[1];
 
-  //   await utils.squareImages(imagesLength);
+    const client = await utils.login();
+    const imagesLength = await utils.getBestOfCurrentWeek(client);
 
-  //   const buffers = [];
-  //   for (let i = 0; i < imagesLength; i++) {
-  //     const buffer = fs.readFileSync(`output_square_${i}.jpg`);
-  //     buffers.push(buffer);
+    await utils.squareImages(imagesLength, size);
 
-  //     bot.sendPhoto(chatId, buffer);
-  //   }
-  // });
+    const buffers = [];
+    for (let i = 0; i < imagesLength; i++) {
+      const buffer = fs.readFileSync(`output_square_${i}.jpg`);
+      buffers.push(buffer);
+
+      bot.sendPhoto(chatId, buffer);
+    }
+  });
 
   bot.onText(/^show_fwd_queue$/i, async (msg) => {
     const chatId = msg.chat.id;
@@ -309,8 +281,6 @@ export const setupBotEvents = (bot) => {
 
     const messages = await collections.fwd.find();
     const delayedMessages = await collections.later.find();
-    // const messages = collections.fwdQueue.where().items;
-    // const delayedMessages = collections.laterQueue.where().items;
 
     bot.sendMessage(
       chatId,
