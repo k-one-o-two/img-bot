@@ -21,21 +21,17 @@ setupBotEvents(bot);
 const collections = await connectToDatabase();
 
 const tick = async () => {
-  // const messages = collections.fwdQueue.where().items;
-  // const laterMessages = collections.laterQueue.where().items;
-  //
-  const messages = await collections.fwd.find();
-  const laterMessages = await collections.later.find();
+  const messages = await collections.fwd.find({}).toArray();
+  const laterMessages = await collections.later.find({}).toArray();
 
   const isSaturday = new Date().getDay() === 6;
 
   if (isSaturday && laterMessages && laterMessages.length) {
     const message = laterMessages[0];
-    const cid = message.cid;
 
     bot.sendMessage(
       settings.adminGroup,
-      `Sending from delayed ${message.messageId}, cid: ${cid}`,
+      `Sending from delayed ${message.messageId}`,
     );
 
     bot.forwardMessage(
@@ -46,9 +42,6 @@ const tick = async () => {
 
     const fileId = utils.getFileId(message);
     await collections.later.deleteOne({ fileId });
-
-    // collections.laterQueue.remove(cid);
-    // collections.laterQueue.save();
   }
 
   if (!messages || !messages.length) {
@@ -56,24 +49,19 @@ const tick = async () => {
   }
 
   const message = messages[0];
-  const cid = message.cid;
 
-  bot.sendMessage(
-    settings.adminGroup,
-    `Sending ${message.messageId}, cid: ${cid}`,
-  );
+  bot.sendMessage(settings.adminGroup, `Sending ${message.messageId}`);
 
   bot.forwardMessage(settings.photoChannel, message.chatId, message.messageId);
 
   const fileId = utils.getFileId(message);
   await collections.fwd.deleteOne({ fileId });
-
-  // collections.fwdQueue.remove(cid);
-  // collections.fwdQueue.save();
 };
 
 setInterval(() => {
   tick();
 }, settings.interval);
+
+tick();
 
 export default app;

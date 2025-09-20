@@ -1,5 +1,4 @@
 import fs from "fs";
-// import { collections } from "./storage.js";
 import { connectToDatabase } from "./db.js";
 import { utils } from "./utils.js";
 import { settings } from "./settings.js";
@@ -38,12 +37,6 @@ export const setupBotEvents = (bot) => {
       fileId: msg.photo[0].file_unique_id,
       msgId: msg.message_id,
     });
-
-    // collections.chatsArray.insert({
-    //   user: chatId,
-    //   fileId: msg.photo[0].file_unique_id,
-    //   msgId: msg.message_id,
-    // });
 
     try {
       bot.forwardMessage(settings.adminGroup, msg.chat.id, msg.message_id);
@@ -279,8 +272,8 @@ export const setupBotEvents = (bot) => {
 
     const collections = await connectToDatabase();
 
-    const messages = await collections.fwd.find();
-    const delayedMessages = await collections.later.find();
+    const messages = await collections.fwd.find({}).toArray();
+    const delayedMessages = await collections.later.find({}).toArray();
 
     bot.sendMessage(
       chatId,
@@ -305,7 +298,7 @@ export const setupBotEvents = (bot) => {
 
     const collections = await connectToDatabase();
 
-    const messages = await collections.queue.find();
+    const messages = await collections.queue.find({}).toArray();
 
     console.info(`found ${messages.length} messages`);
 
