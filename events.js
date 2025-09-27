@@ -99,6 +99,7 @@ export const setupBotEvents = (bot) => {
       const savedUser = await utils.getUserByFile(fileId);
       if (savedUser) {
         try {
+          await collections.queue.deleteOne({ fileId });
           bot.sendMessage(
             savedUser.user,
             `The photo has been approved and added to the queue. ${
