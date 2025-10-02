@@ -216,6 +216,11 @@ const makePostcard = async () => {
 const squareImages = async (n, size) => {
   return await Promise.all(
     [...Array(n).keys()].map(async (i) => {
+      if (!fs.existsSync(`output_${i}.jpg`)) {
+        console.error(`File output_${i}.jpg does not exist`);
+        return;
+      }
+
       const image = await Jimp.read(`output_${i}.jpg`);
       const { width, height } = image.bitmap;
 
@@ -237,19 +242,24 @@ const squareImages = async (n, size) => {
 };
 
 const downloadPhoto = async (photo, client, name) => {
-  const buffer = await client.downloadFile(
-    new Api.InputPhotoFileLocation({
-      id: photo.id,
-      accessHash: photo.accessHash,
-      fileReference: photo.fileReference,
-      thumbSize: "y",
-    }),
-    {
-      dcId: photo.dcId,
-    },
-  );
+  await client.connect();
 
-  fs.writeFileSync(name ? name : "output.jpg", buffer);
+  const file = new Api.InputPhotoFileLocation({
+    id: photo.id,
+    accessHash: photo.accessHash,
+    fileReference: photo.fileReference,
+    thumbSize: "y",
+  });
+  try {
+    // console.info({ file });
+    const buffer = await client.downloadFile(file, {
+      dcId: photo.dcId,
+    });
+
+    fs.writeFileSync(name ? name : "output.jpg", buffer);
+  } catch (error) {
+    console.error("Error downloading photo:", error, file);
+  }
 };
 
 const getBestOfCurrentMonth = async (client) => {

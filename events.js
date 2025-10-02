@@ -245,21 +245,54 @@ export const setupBotEvents = (bot) => {
     });
   });
 
-  bot.onText(/^get_best_of_week\s?(.+)$/i, async (msg, match) => {
+  bot.onText(/^get_best_of_week$/i, async (msg) => {
+    console.log("get_best_of_week");
     const chatId = msg.chat.id;
 
-    const size = match[1];
+    const size = 512;
 
     const client = await utils.login();
+    // console.log(client);
     const imagesLength = await utils.getBestOfCurrentWeek(client);
 
     await utils.squareImages(imagesLength, size);
 
     const buffers = [];
     for (let i = 0; i < imagesLength; i++) {
+      if (!fs.existsSync(`output_square_${i}.jpg`)) {
+        console.error(`File output_square_${i}.jpg does not exist`);
+        continue;
+      }
+
       const buffer = fs.readFileSync(`output_square_${i}.jpg`);
       buffers.push(buffer);
+      console.info(`Sending photo ${i + 1} of ${imagesLength}`);
+      bot.sendPhoto(chatId, buffer);
+    }
+  });
 
+  bot.onText(/^get_best_of_week\s(.+)$/i, async (msg, match) => {
+    console.log("get_best_of_week");
+    const chatId = msg.chat.id;
+
+    const size = match[1];
+
+    const client = await utils.login();
+    // console.log(client);
+    const imagesLength = await utils.getBestOfCurrentWeek(client);
+
+    await utils.squareImages(imagesLength, size);
+
+    const buffers = [];
+    for (let i = 0; i < imagesLength; i++) {
+      if (!fs.existsSync(`output_square_${i}.jpg`)) {
+        console.error(`File output_square_${i}.jpg does not exist`);
+        continue;
+      }
+
+      const buffer = fs.readFileSync(`output_square_${i}.jpg`);
+      buffers.push(buffer);
+      console.info(`Sending photo ${i + 1} of ${imagesLength}`);
       bot.sendPhoto(chatId, buffer);
     }
   });
