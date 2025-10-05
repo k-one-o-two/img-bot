@@ -212,6 +212,8 @@ export const setupBotEvents = (bot) => {
       ``;
       await collections.rejected.insertOne({ fileId });
 
+      await collections.queue.deleteOne({ fileId });
+
       const savedUser = await utils.getUserByFile(fileId);
 
       if (savedUser) {
