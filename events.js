@@ -3,6 +3,11 @@ import { connectToDatabase } from "./db.js";
 import { utils } from "./utils.js";
 import { settings } from "./settings.js";
 import { subMonths, format } from "date-fns";
+import { fileURLToPath } from "url";
+import path, { dirname } from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export const setupBotEvents = (bot) => {
   console.log("setupBotEvents");
@@ -261,12 +266,16 @@ export const setupBotEvents = (bot) => {
 
     const buffers = [];
     for (let i = 0; i < imagesLength; i++) {
-      if (!fs.existsSync(`output_square_${i}.jpg`)) {
+      if (
+        !fs.existsSync(path.join(__dirname, `square/output_square_${i}.jpg`))
+      ) {
         console.error(`File output_square_${i}.jpg does not exist`);
         continue;
       }
 
-      const buffer = fs.readFileSync(`output_square_${i}.jpg`);
+      const buffer = fs.readFileSync(
+        path.join(__dirname, `square/output_square_${i}.jpg`),
+      );
       buffers.push(buffer);
       console.info(`Sending photo ${i + 1} of ${imagesLength}`);
       bot.sendPhoto(chatId, buffer);
@@ -287,12 +296,16 @@ export const setupBotEvents = (bot) => {
 
     const buffers = [];
     for (let i = 0; i < imagesLength; i++) {
-      if (!fs.existsSync(`output_square_${i}.jpg`)) {
+      if (
+        !fs.existsSync(path.join(__dirname, `square/output_square_${i}.jpg`))
+      ) {
         console.error(`File output_square_${i}.jpg does not exist`);
         continue;
       }
 
-      const buffer = fs.readFileSync(`output_square_${i}.jpg`);
+      const buffer = fs.readFileSync(
+        path.join(__dirname, `square/output_square_${i}.jpg`),
+      );
       buffers.push(buffer);
       console.info(`Sending photo ${i + 1} of ${imagesLength}`);
       bot.sendPhoto(chatId, buffer);

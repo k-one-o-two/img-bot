@@ -12,8 +12,11 @@ import { Api, TelegramClient } from "telegram";
 // const { Api, TelegramClient, StoreSession } = telegram;
 import TelegramBot from "node-telegram-bot-api";
 import input from "input";
+import { fileURLToPath } from "url";
+import path, { dirname } from "path";
 
-// console.info({ telegram });
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const getFileInfo = async (file_id) => {
   const url = `https://api.telegram.org/bot${settings.token}/getFile?file_id=${file_id}`;
@@ -214,14 +217,20 @@ const makePostcard = async () => {
 };
 
 const squareImages = async (n, size) => {
+  fs.rmSync("square", { recursive: true, force: true });
+
+  fs.mkdirSync("square", { recursive: true });
+
   return await Promise.all(
     [...Array(n).keys()].map(async (i) => {
-      if (!fs.existsSync(`output_${i}.jpg`)) {
+      if (!fs.existsSync(path.join(__dirname, `output/output_${i}.jpg`))) {
         console.error(`File output_${i}.jpg does not exist`);
         return;
       }
 
-      const image = await Jimp.read(`output_${i}.jpg`);
+      const image = await Jimp.read(
+        path.join(__dirname, `output/output_${i}.jpg`),
+      );
       const { width, height } = image.bitmap;
 
       const isVertical = height > width;
@@ -236,7 +245,7 @@ const squareImages = async (n, size) => {
 
       image.resize({ w: Number(size) || 512, h: Number(size) || 512 }); // resize
 
-      return image.write(`output_square_${i}.jpg`);
+      return image.write(path.join(__dirname, `square/output_square_${i}.jpg`));
     }),
   );
 };
@@ -251,7 +260,6 @@ const downloadPhoto = async (photo, client, name) => {
     thumbSize: "y",
   });
   try {
-    // console.info({ file });
     const buffer = await client.downloadFile(file, {
       dcId: photo.dcId,
     });
@@ -321,6 +329,9 @@ const getBestOfCurrentMonth = async (client) => {
 const getBestOfCurrentWeek = async (client) => {
   await client.connect();
 
+  fs.rmSync("output", { recursive: true, force: true });
+  fs.mkdirSync("output", { recursive: true });
+
   const req = {
     peer: settings.photoChannel,
     limit: 100,
@@ -357,6 +368,7 @@ const getBestOfCurrentWeek = async (client) => {
   const startOfWeekDate = startOfWeek(now);
 
   mappedMessages = mappedMessages
+    .filter((message) => !!message)
     .filter((message) => {
       return (
         message &&
@@ -380,7 +392,11 @@ const getBestOfCurrentWeek = async (client) => {
   for (let i = 0; i < length; i++) {
     const message = mappedMessages[i];
     if (message) {
-      await downloadPhoto(message.photo, client, `output_${i}.jpg`);
+      await downloadPhoto(
+        message.photo,
+        client,
+        path.join(__dirname, `/output/output_${i}.jpg`),
+      );
     }
   }
 
