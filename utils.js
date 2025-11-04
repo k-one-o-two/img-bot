@@ -1,15 +1,14 @@
-import writeFile from "fs/promises";
+// import writeFile from "fs/promises";
 import fs from "fs";
 import { Readable } from "stream";
 // import { collections } from "./storage.js";
 import { connectToDatabase } from "./db.js";
 import { Jimp, loadFont } from "jimp";
+import * as fonts from "jimp/fonts";
 import { settings } from "./settings.js";
 import { subMonths, startOfWeek, startOfMonth } from "date-fns";
 import { StoreSession } from "telegram/sessions/index.js";
 import { Api, TelegramClient } from "telegram";
-// import telegram from "telegram";
-// const { Api, TelegramClient, StoreSession } = telegram;
 import TelegramBot from "node-telegram-bot-api";
 import input from "input";
 import { fileURLToPath } from "url";
@@ -32,10 +31,45 @@ const downloadFile = async (file_path, chatId) => {
   const fileName = file_path.replaceAll("/", "_");
 
   const response = await fetch(url);
-  const stream = Readable.fromWeb(response.body);
-  const result = await writeFile(`./24/${chatId}_${fileName}`, stream);
+  const readStream = Readable.fromWeb(response.body);
+  const writeStream = fs.createWriteStream(`./output/${chatId}_${fileName}`);
 
-  return result;
+  readStream.pipe(writeStream);
+
+  return new Promise((resolve) => {
+    writeStream.on("close", function () {
+      resolve(`./output/${chatId}_${fileName}`);
+    });
+  });
+
+  // return `./output/${chatId}_${fileName}`;
+};
+
+const addWatermark = async (fileName, watermark) => {
+  const image = await Jimp.read(path.join(__dirname, fileName));
+  const { width, height } = image.bitmap;
+  const border = 20;
+  const borderB = new Jimp({ width, height: border * 4, color: 0xffffffff });
+
+  image.composite(borderB, 0, height - border * 4);
+
+  const logo = await Jimp.read(`assets/logo.jpg`);
+  image.composite(logo, 10, height - border * 4 + 10);
+
+  const font = await loadFont(fonts.SANS_32_BLACK);
+
+  image.print({
+    font,
+    x: 80,
+    y: height - border * 4 + 32,
+    text: watermark,
+  });
+
+  await image.write(path.join(__dirname, fileName));
+};
+
+const deleteFile = (fileName) => {
+  fs.rmSync(path.join(__dirname, fileName));
 };
 
 const getUserByFile = async (fileId) => {
@@ -459,4 +493,6 @@ export const utils = {
   isInAdminGroup,
   login,
   createBot,
+  addWatermark,
+  deleteFile,
 };

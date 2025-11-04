@@ -12,10 +12,18 @@ const __dirname = dirname(__filename);
 export const setupBotEvents = (bot) => {
   console.log("setupBotEvents");
   bot.on("photo", async (msg) => {
-    console.log("event: photo");
     if (utils.isInAdminGroup(msg)) {
       return;
     }
+
+    const file = await utils.getFileInfo(msg.photo.pop().file_id);
+    const filename = await utils.downloadFile(
+      file.result.file_path,
+      msg.chat.id,
+    );
+
+    const watermark = `From ${msg.from.first_name} for Postikortti Suomesta`;
+    await utils.addWatermark(filename, watermark);
 
     const collections = await connectToDatabase();
 
@@ -28,8 +36,6 @@ export const setupBotEvents = (bot) => {
         { reply_to_message_id: msg.message_id },
       );
     }
-
-    // normal photo
 
     console.log(new Date().toString(), " BOT got photo");
 
@@ -44,7 +50,14 @@ export const setupBotEvents = (bot) => {
     });
 
     try {
-      bot.forwardMessage(settings.adminGroup, msg.chat.id, msg.message_id);
+      const buffer = fs.readFileSync(filename);
+
+      await bot.sendPhoto(settings.adminGroup, buffer, {
+        caption: msg.caption,
+      });
+
+      utils.deleteFile(filename);
+      // bot.forwardMessage(settings.adminGroup, msg.chat.id, msg.message_id);
     } catch (e) {
       console.log("forward failed: ", e);
     }
