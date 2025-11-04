@@ -45,27 +45,46 @@ const downloadFile = async (file_path, chatId) => {
   // return `./output/${chatId}_${fileName}`;
 };
 
-const addWatermark = async (fileName, watermark) => {
-  const image = await Jimp.read(path.join(__dirname, fileName));
-  const { width, height } = image.bitmap;
-  const border = 20;
-  const borderB = new Jimp({ width, height: border * 4, color: 0xffffffff });
+// const expandImage = async (fileName) => {
+//   const border = 80;
 
-  image.composite(borderB, 0, height - border * 4);
+//   const image = await Jimp.read(path.join(__dirname, fileName));
+//   const { width, height } = image.bitmap;
+//   image
+//     .clone()
+//     .contain({
+//       w: width,
+//       h: height + border,
+//     })
+//     .write(path.join(__dirname, fileName));
+// };
+
+const addWatermark = async (fileName, watermark) => {
+  // await expandImage(fileName);
+  const image = await Jimp.read(path.join(__dirname, fileName));
+  const border = 80;
+  const { width, height } = image.bitmap;
+
+  const target = new Jimp({
+    width,
+    height: height + border,
+    color: 0xffffffff,
+  });
+  target.composite(image, 0, 0);
 
   const logo = await Jimp.read(`assets/logo.jpg`);
-  image.composite(logo, 10, height - border * 4 + 10);
+  target.composite(logo, 10, height + 10);
 
   const font = await loadFont(fonts.SANS_32_BLACK);
 
-  image.print({
+  target.print({
     font,
     x: 80,
-    y: height - border * 4 + 32,
+    y: height + 32,
     text: watermark,
   });
 
-  await image.write(path.join(__dirname, fileName));
+  await target.write(path.join(__dirname, fileName));
 };
 
 const deleteFile = (fileName) => {

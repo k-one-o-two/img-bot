@@ -12,6 +12,8 @@ const __dirname = dirname(__filename);
 export const setupBotEvents = (bot) => {
   console.log("setupBotEvents");
   bot.on("photo", async (msg) => {
+    // console.info(msg);
+
     if (utils.isInAdminGroup(msg)) {
       return;
     }
@@ -22,7 +24,7 @@ export const setupBotEvents = (bot) => {
       msg.chat.id,
     );
 
-    const watermark = `From ${msg.from.first_name} for Postikortti Suomesta`;
+    const watermark = `By ${msg.from.first_name} (@${msg.from.username}) for Postikortti Suomesta (@nerdsbayPhoto)`;
     await utils.addWatermark(filename, watermark);
 
     const collections = await connectToDatabase();
@@ -53,7 +55,7 @@ export const setupBotEvents = (bot) => {
       const buffer = fs.readFileSync(filename);
 
       await bot.sendPhoto(settings.adminGroup, buffer, {
-        caption: msg.caption,
+        caption: `${msg.caption || ""}\n${watermark}`,
       });
 
       utils.deleteFile(filename);
