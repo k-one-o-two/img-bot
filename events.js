@@ -24,7 +24,11 @@ export const setupBotEvents = (bot) => {
       msg.chat.id,
     );
 
-    const watermark = `By ${msg.from.first_name} (@${msg.from.username}) for Postikortti Suomesta (@nerdsbayPhoto)`;
+    const name = msg.from.first_name || msg.from.username;
+
+    const watermark = name
+      ? `By ${name} for Postikortti Suomesta`
+      : "Postikortti Suomesta";
     await utils.addWatermark(filename, watermark);
 
     const collections = await connectToDatabase();
@@ -55,7 +59,7 @@ export const setupBotEvents = (bot) => {
       const buffer = fs.readFileSync(filename);
 
       await bot.sendPhoto(settings.adminGroup, buffer, {
-        caption: `${msg.caption || ""}\n${watermark}`,
+        caption: `${msg.caption || ""}\n${watermark}\n@nerdsbayPhoto`,
       });
 
       utils.deleteFile(filename);
