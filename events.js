@@ -49,17 +49,17 @@ export const setupBotEvents = (bot) => {
       reply_to_message_id: msg.message_id,
     });
 
-    await collections.queue.insertOne({
-      user: chatId,
-      fileId: msg.photo[0].file_unique_id,
-      msgId: msg.message_id,
-    });
-
     try {
       const buffer = fs.readFileSync(filename);
 
-      await bot.sendPhoto(settings.adminGroup, buffer, {
+      const newMessage = await bot.sendPhoto(settings.adminGroup, buffer, {
         caption: `${msg.caption || ""}\n${watermark}\n@nerdsbayPhoto`,
+      });
+
+      await collections.queue.insertOne({
+        user: chatId,
+        fileId: newMessage.photo[0].file_unique_id,
+        msgId: msg.message_id,
       });
 
       utils.deleteFile(filename);
@@ -195,7 +195,10 @@ export const setupBotEvents = (bot) => {
         return;
       }
 
+      console.info({ msg });
+
       const original = msg.reply_to_message;
+      console.info(original);
       const fileId = utils.getFileId(original);
 
       const collections = await connectToDatabase();
@@ -203,6 +206,8 @@ export const setupBotEvents = (bot) => {
       await collections.rejected.insertOne({ fileId });
 
       const savedUser = await utils.getUserByFile(fileId);
+
+      console.info({ savedUser });
 
       if (savedUser) {
         try {
