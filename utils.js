@@ -26,41 +26,38 @@ const getFileInfo = async (file_id) => {
   return fileData;
 };
 
-const downloadFile = async (file_path, chatId) => {
+const downloadUserPicture = async (avatarFileId, userId) => {
+  const avatarFileInfo = await getFileInfo(avatarFileId);
+
+  return await utils.downloadFile(
+    avatarFileInfo.result.file_path,
+    userId,
+    true,
+  );
+};
+
+const downloadFile = async (file_path, chatId, isUserPicture) => {
   const url = `https://api.telegram.org/file/bot${settings.token}/${file_path}`;
   const fileName = file_path.replaceAll("/", "_");
 
+  const targetFileName = isUserPicture
+    ? `./output/user_${chatId}_${fileName}`
+    : `./output/file_${chatId}_${fileName}`;
+
   const response = await fetch(url);
   const readStream = Readable.fromWeb(response.body);
-  const writeStream = fs.createWriteStream(`./output/${chatId}_${fileName}`);
+  const writeStream = fs.createWriteStream(targetFileName);
 
   readStream.pipe(writeStream);
 
   return new Promise((resolve) => {
     writeStream.on("close", function () {
-      resolve(`./output/${chatId}_${fileName}`);
+      resolve(targetFileName);
     });
   });
-
-  // return `./output/${chatId}_${fileName}`;
 };
 
-// const expandImage = async (fileName) => {
-//   const border = 80;
-
-//   const image = await Jimp.read(path.join(__dirname, fileName));
-//   const { width, height } = image.bitmap;
-//   image
-//     .clone()
-//     .contain({
-//       w: width,
-//       h: height + border,
-//     })
-//     .write(path.join(__dirname, fileName));
-// };
-
-const addWatermark = async (fileName, watermark) => {
-  // await expandImage(fileName);
+const addWatermark = async (fileName, watermark, avatarFileName) => {
   const image = await Jimp.read(path.join(__dirname, fileName));
   const border = 80;
   const { width, height } = image.bitmap;
@@ -73,13 +70,19 @@ const addWatermark = async (fileName, watermark) => {
   target.composite(image, 0, 0);
 
   const logo = await Jimp.read(`assets/logo.jpg`);
+  logo.circle();
   target.composite(logo, 10, height + 10);
+
+  const avatar = await Jimp.read(path.join(__dirname, avatarFileName));
+
+  avatar.resize({ w: 60, h: 60 }).circle();
+  target.composite(avatar, 80, height + 10);
 
   const font = await loadFont(fonts.SANS_32_BLACK);
 
   target.print({
     font,
-    x: 80,
+    x: 150,
     y: height + 32,
     text: watermark,
   });
@@ -514,4 +517,5 @@ export const utils = {
   createBot,
   addWatermark,
   deleteFile,
+  downloadUserPicture,
 };

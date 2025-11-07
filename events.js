@@ -5,6 +5,7 @@ import { settings } from "./settings.js";
 import { subMonths, format } from "date-fns";
 import { fileURLToPath } from "url";
 import path, { dirname } from "path";
+import { fi } from "date-fns/locale";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -26,10 +27,18 @@ export const setupBotEvents = (bot) => {
 
     const name = msg.from.first_name || msg.from.username;
 
+    const avatar = await bot.getUserProfilePhotos(msg.from.id, { limit: 1 });
+    const firstAvatar = avatar.photos[0][0];
+
+    const avatarFileName = await utils.downloadUserPicture(
+      firstAvatar.file_id,
+      msg.chat.id,
+    );
+
     const watermark = name
       ? `By ${name} for Postikortti Suomesta`
       : "Postikortti Suomesta";
-    await utils.addWatermark(filename, watermark);
+    await utils.addWatermark(filename, watermark, avatarFileName);
 
     const collections = await connectToDatabase();
 
@@ -195,10 +204,7 @@ export const setupBotEvents = (bot) => {
         return;
       }
 
-      console.info({ msg });
-
       const original = msg.reply_to_message;
-      console.info(original);
       const fileId = utils.getFileId(original);
 
       const collections = await connectToDatabase();
@@ -206,8 +212,6 @@ export const setupBotEvents = (bot) => {
       await collections.rejected.insertOne({ fileId });
 
       const savedUser = await utils.getUserByFile(fileId);
-
-      console.info({ savedUser });
 
       if (savedUser) {
         try {
