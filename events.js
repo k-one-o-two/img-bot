@@ -12,6 +12,14 @@ const __dirname = dirname(__filename);
 
 export const setupBotEvents = (bot) => {
   console.log("setupBotEvents");
+  bot.on("text", async (msg) => {
+    if (utils.isInAdminGroup(msg)) {
+      return;
+    }
+
+    const text = `User ${msg.from.first_name || msg.from.username} (@${msg.from.username || msg.from.id}) sent a message:\n${msg.text}`;
+    bot.sendMessage(settings.adminGroup, text);
+  });
   bot.on("photo", async (msg) => {
     // console.info(msg);
 
@@ -76,7 +84,6 @@ export const setupBotEvents = (bot) => {
       });
 
       utils.deleteFile(filename);
-      // bot.forwardMessage(settings.adminGroup, msg.chat.id, msg.message_id);
     } catch (e) {
       console.log("forward failed: ", e);
     }
