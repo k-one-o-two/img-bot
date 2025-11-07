@@ -28,12 +28,16 @@ export const setupBotEvents = (bot) => {
     const name = msg.from.first_name || msg.from.username;
 
     const avatar = await bot.getUserProfilePhotos(msg.from.id, { limit: 1 });
-    const firstAvatar = avatar.photos[0][0];
+    let avatarFileName = null;
 
-    const avatarFileName = await utils.downloadUserPicture(
-      firstAvatar.file_id,
-      msg.chat.id,
-    );
+    if (avatar.photos.length) {
+      const firstAvatar = avatar.photos[0][0];
+
+      avatarFileName = await utils.downloadUserPicture(
+        firstAvatar.file_id,
+        msg.chat.id,
+      );
+    }
 
     const watermark = name
       ? `By ${name} for Postikortti Suomesta`

@@ -73,10 +73,12 @@ const addWatermark = async (fileName, watermark, avatarFileName) => {
   logo.circle();
   target.composite(logo, 10, height + 10);
 
-  const avatar = await Jimp.read(path.join(__dirname, avatarFileName));
+  if (avatarFileName) {
+    const avatar = await Jimp.read(path.join(__dirname, avatarFileName));
 
-  avatar.resize({ w: 60, h: 60 }).circle();
-  target.composite(avatar, 80, height + 10);
+    avatar.resize({ w: 60, h: 60 }).circle();
+    target.composite(avatar, 80, height + 10);
+  }
 
   const font = await loadFont(fonts.SANS_32_BLACK);
 
