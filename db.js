@@ -13,6 +13,7 @@ export const connectToDatabase = async () => {
     const later = database.collection("later");
     const queue = database.collection("queue");
     const rejected = database.collection("rejected");
+    const users = database.collection("users");
 
     console.log("Connected to MongoDB");
 
@@ -22,6 +23,7 @@ export const connectToDatabase = async () => {
       later,
       queue,
       rejected,
+      users,
     };
   } catch (error) {
     console.error("Error connecting to MongoDB:", error);
