@@ -80,13 +80,13 @@ const addWatermark = async (fileName, watermark, avatarFileName) => {
     target.composite(avatar, 80, height + 10);
   }
 
-  const font = await loadFont("./font/napalm-30.fnt");
+  const font = await loadFont("./font/napalm.fnt");
 
   target.print({
     font,
     x: 150,
     y: height + 32,
-    text: watermark,
+    text: watermark + " кириллицца",
   });
 
   await target.write(path.join(__dirname, fileName));
