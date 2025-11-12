@@ -86,7 +86,7 @@ const addWatermark = async (fileName, watermark, avatarFileName) => {
     font,
     x: 150,
     y: height + 32,
-    text: watermark + " кириллицца",
+    text: watermark,
   });
 
   await target.write(path.join(__dirname, fileName));
