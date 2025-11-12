@@ -80,7 +80,7 @@ const addWatermark = async (fileName, watermark, avatarFileName) => {
     target.composite(avatar, 80, height + 10);
   }
 
-  const font = await loadFont("./font/napalm.fnt");
+  const font = await loadFont("./font/j-reg.fnt");
 
   target.print({
     font,
