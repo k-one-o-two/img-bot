@@ -1,7 +1,5 @@
-// import writeFile from "fs/promises";
 import fs from "fs";
 import { Readable } from "stream";
-// import { collections } from "./storage.js";
 import { connectToDatabase } from "./db.js";
 import { Jimp, loadFont } from "jimp";
 import * as fonts from "jimp/fonts";
@@ -36,13 +34,17 @@ const downloadUserPicture = async (avatarFileId, userId) => {
   );
 };
 
-const downloadFile = async (file_path, chatId, isUserPicture) => {
+const downloadFile = async (file_path, chatId, options) => {
   const url = `https://api.telegram.org/file/bot${settings.token}/${file_path}`;
   const fileName = file_path.replaceAll("/", "_");
 
-  const targetFileName = isUserPicture
-    ? `./output/user_${chatId}_${fileName}`
-    : `./output/file_${chatId}_${fileName}`;
+  const isContest = !!options?.isContest;
+
+  const dir = isContest ? "contest" : "output";
+
+  const targetFileName = options?.isUserPicture
+    ? `./${dir}/user_${chatId}_${fileName}`
+    : `./${dir}/file_${chatId}_${fileName}`;
 
   const response = await fetch(url);
   const readStream = Readable.fromWeb(response.body);

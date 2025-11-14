@@ -5,21 +5,63 @@ import { settings } from "./settings.js";
 import { subMonths, format } from "date-fns";
 import { fileURLToPath } from "url";
 import path, { dirname } from "path";
-import { fi } from "date-fns/locale";
+
+const CONTEST_TAG = "#contest";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export const setupBotEvents = (bot) => {
   console.log("setupBotEvents");
-  bot.on("text", async (msg) => {
-    if (utils.isInAdminGroup(msg)) {
-      return;
-    }
 
-    const text = `User ${msg.from.first_name || msg.from.username} (@${msg.from.username || msg.from.id}) sent a message:\n${msg.text}`;
-    bot.sendMessage(settings.adminGroup, text);
+  // experimental
+  bot.onText(/^vote$/i, async (msg) => {
+    // const options = {
+    //   reply_markup: JSON.stringify({
+    //     inline_keyboard: [
+    //       [{ text: "Some button text 1", callback_data: "1" }],
+    //       [{ text: "Some button text 2", callback_data: "2" }],
+    //       [{ text: "Some button text 3", callback_data: "3" }],
+    //     ],
+    //   }),
+    // };
+
+    const newMessage = await bot.sendMessage(msg.chat.id, "answer.");
+    bot.editMessageReplyMarkup(
+      {
+        inline_keyboard: [
+          [
+            { text: "Option 1", callback_data: "option1" },
+            { text: "Option 2", callback_data: "option2" },
+          ],
+          [
+            { text: "Option 3", callback_data: "option3" },
+            { text: "Option 4", callback_data: "option4" },
+          ],
+        ],
+      },
+      {
+        chat_id: msg.chat.id,
+        message_id: newMessage.message_id,
+      },
+    );
+    // bot.sendMessage(msg.chat.id, "answer.", option);
   });
+
+  bot.on("callback_query", async (msg) => {
+    console.info({ msg });
+  });
+
+  // end
+
+  // bot.on("text", async (msg) => {
+  //   if (utils.isInAdminGroup(msg)) {
+  //     return;
+  //   }
+
+  //   const text = `User ${msg.from.first_name || msg.from.username} (@${msg.from.username || msg.from.id}) sent a message:\n${msg.text}`;
+  //   bot.sendMessage(settings.adminGroup, text);
+  // });
   bot.on("photo", async (msg) => {
     // console.info(msg);
 
@@ -33,6 +75,14 @@ export const setupBotEvents = (bot) => {
       msg.chat.id,
     );
 
+    if (msg.caption === CONTEST_TAG) {
+      // bot.sendMessage(
+      //   chatId,
+      //   `Прием фотографий уже закончен, я передам фотографию обычным образом`,
+      //   { reply_to_message_id: msg.message_id },
+      // );
+    }
+
     const name = msg.from.first_name || msg.from.username;
 
     const avatar = await bot.getUserProfilePhotos(msg.from.id, { limit: 1 });
@@ -44,6 +94,9 @@ export const setupBotEvents = (bot) => {
       avatarFileName = await utils.downloadUserPicture(
         firstAvatar.file_id,
         msg.chat.id,
+        {
+          isUserPicture: true,
+        },
       );
     }
 
@@ -55,14 +108,6 @@ export const setupBotEvents = (bot) => {
     const collections = await connectToDatabase();
 
     const chatId = msg.chat.id;
-
-    if (msg.caption === "#24best") {
-      bot.sendMessage(
-        chatId,
-        `Прием фотографий уже закончен, я передам фотографию обычным образом`,
-        { reply_to_message_id: msg.message_id },
-      );
-    }
 
     console.log(new Date().toString(), " BOT got photo");
 
