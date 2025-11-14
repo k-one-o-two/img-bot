@@ -5,10 +5,9 @@ import { connectToDatabase } from "./db.js";
 import { utils } from "./utils.js";
 
 const addPhoto = async (filename, userId, userName) => {
+  const collections = await connectToDatabase();
+  const existingRecord = await collections.contest.findOne({ userId });
   return new Promise(async (resolve, reject) => {
-    const collections = await connectToDatabase();
-    const existingRecord = await collections.contest.findOne({ userId });
-
     if (existingRecord) {
       // we already have this persons photo
       reject("");
