@@ -15,6 +15,51 @@ const __dirname = dirname(__filename);
 export const setupBotEvents = (bot) => {
   console.log("setupBotEvents");
 
+  bot.onText(/^contest_stat/i, async (msg) => {
+    if (!utils.isInAdminGroup(msg)) {
+      return;
+    }
+
+    const chatId = msg.chat.id;
+    const contestEntries = await contest.getContestList();
+
+    const getUserPicture = async (id) => {
+      const avatar = await bot.getUserProfilePhotos(id, { limit: 1 });
+      if (avatar.photos.length) {
+        const firstAvatar = avatar.photos[0][0];
+
+        console.info({ firstAvatar });
+
+        return await utils.downloadUserPicture(firstAvatar.file_id, id, {
+          isUserPicture: true,
+        });
+      }
+
+      return null;
+    };
+
+    await Promise.all(
+      contestEntries.map(async (entry, index) => {
+        console.info({ entry });
+        const avatarFileName = await getUserPicture(entry.userId);
+
+        await utils.addWatermark(
+          entry.filename,
+          `by ${entry.userName} votes: ${entry.votes}`,
+          avatarFileName,
+          {
+            replace: true,
+          },
+        );
+
+        const buffer = fs.readFileSync(entry.filename);
+        return bot.sendPhoto(chatId, buffer, {
+          caption: (index + 1).toString(),
+        });
+      }),
+    );
+  });
+
   bot.onText(/^vote$/i, async (msg) => {
     const chatId = msg.chat.id;
 
@@ -113,7 +158,7 @@ export const setupBotEvents = (bot) => {
       }
 
       bot.sendMessage(
-        chatId,
+        settings.adminGroup,
         `User ${name} has added photo to the contest (${photoId})`,
       );
 

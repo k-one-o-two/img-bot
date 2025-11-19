@@ -59,7 +59,7 @@ const downloadFile = async (file_path, chatId, options) => {
   });
 };
 
-const addWatermark = async (fileName, watermark, avatarFileName) => {
+const addWatermark = async (fileName, watermark, avatarFileName, options) => {
   console.info({ fileName }, { watermark });
   const image = await Jimp.read(path.join(__dirname, fileName));
   const border = 80;
@@ -67,20 +67,27 @@ const addWatermark = async (fileName, watermark, avatarFileName) => {
 
   const target = new Jimp({
     width,
-    height: height + border,
+    height: options && options.replace ? height : height + border,
     color: 0xffffffff,
   });
   target.composite(image, 0, 0);
 
+  const { height: targetHeight } = target.bitmap;
+
+  if (options.replace) {
+    const borderB = new Jimp({ width, height: border, color: 0xffffffff });
+    target.composite(borderB, 0, targetHeight - border);
+  }
+
   const logo = await Jimp.read(`assets/logo.jpg`);
   logo.circle();
-  target.composite(logo, 10, height + 10);
+  target.composite(logo, 10, targetHeight - 70);
 
   if (avatarFileName) {
     const avatar = await Jimp.read(path.join(__dirname, avatarFileName));
 
     avatar.resize({ w: 60, h: 60 }).circle();
-    target.composite(avatar, 80, height + 10);
+    target.composite(avatar, 80, targetHeight - 70);
   }
 
   const font = await loadFont(fonts.SANS_32_BLACK);
@@ -88,7 +95,7 @@ const addWatermark = async (fileName, watermark, avatarFileName) => {
   target.print({
     font,
     x: 150,
-    y: height + 32,
+    y: targetHeight - 48,
     text: watermark,
   });
 
