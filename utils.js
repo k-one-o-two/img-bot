@@ -60,6 +60,7 @@ const downloadFile = async (file_path, chatId, options) => {
 };
 
 const addWatermark = async (fileName, watermark, avatarFileName) => {
+  console.info({ fileName }, { watermark });
   const image = await Jimp.read(path.join(__dirname, fileName));
   const border = 80;
   const { width, height } = image.bitmap;

@@ -2,6 +2,7 @@ import fs from "fs";
 import { connectToDatabase } from "./db.js";
 import { utils } from "./utils.js";
 import { settings } from "./settings.js";
+import { contest } from "./contest.js";
 import { subMonths, format } from "date-fns";
 import { fileURLToPath } from "url";
 import path, { dirname } from "path";
@@ -16,6 +17,7 @@ export const setupBotEvents = (bot) => {
 
   // experimental
   bot.onText(/^vote$/i, async (msg) => {
+    const chatId = msg.chat.id;
     // const options = {
     //   reply_markup: JSON.stringify({
     //     inline_keyboard: [
@@ -25,20 +27,30 @@ export const setupBotEvents = (bot) => {
     //     ],
     //   }),
     // };
+    //
+    const contestEntries = await contest.getContestList();
+
+    console.info({ contestEntries });
+
+    const voteOptions = [];
+
+    await Promise.all(
+      contestEntries.map(async (entry, index) => {
+        const buffer = fs.readFileSync(entry.filename);
+        voteOptions.push({ text: index + 1, callback_data: index + 1 });
+
+        return bot.sendPhoto(chatId, buffer, {
+          caption: (index + 1).toString(),
+        });
+      }),
+    );
+
+    console.info({ voteOptions });
 
     const newMessage = await bot.sendMessage(msg.chat.id, "answer.");
     bot.editMessageReplyMarkup(
       {
-        inline_keyboard: [
-          [
-            { text: "Option 1", callback_data: "option1" },
-            { text: "Option 2", callback_data: "option2" },
-          ],
-          [
-            { text: "Option 3", callback_data: "option3" },
-            { text: "Option 4", callback_data: "option4" },
-          ],
-        ],
+        inline_keyboard: [voteOptions],
       },
       {
         chat_id: msg.chat.id,
@@ -50,6 +62,21 @@ export const setupBotEvents = (bot) => {
 
   bot.on("callback_query", async (msg) => {
     console.info({ msg });
+    const chatId = msg.from.id;
+    const { data } = msg;
+
+    const voteError = await contest.recordVote(chatId, Number(data));
+
+    if (voteError) {
+      bot.sendMessage(chatId, `There has been a mistake: ${voteError}`);
+
+      return;
+    }
+
+    bot.sendMessage(
+      chatId,
+      `Your voice has been heard, may the photo number ${data} be the winner!`,
+    );
   });
 
   // end
@@ -63,74 +90,101 @@ export const setupBotEvents = (bot) => {
   //   bot.sendMessage(settings.adminGroup, text);
   // });
   bot.on("photo", async (msg) => {
-    // console.info(msg);
-
     if (utils.isInAdminGroup(msg)) {
       return;
     }
+
+    console.log(new Date().toString(), " BOT got photo");
 
     const file = await utils.getFileInfo(msg.photo.pop().file_id);
     const filename = await utils.downloadFile(
       file.result.file_path,
       msg.chat.id,
+      {
+        isContest: msg.caption === CONTEST_TAG,
+      },
     );
 
-    if (msg.caption === CONTEST_TAG) {
-      // bot.sendMessage(
-      //   chatId,
-      //   `Прием фотографий уже закончен, я передам фотографию обычным образом`,
-      //   { reply_to_message_id: msg.message_id },
-      // );
-    }
-
+    const chatId = msg.chat.id;
     const name = msg.from.first_name || msg.from.username;
 
-    const avatar = await bot.getUserProfilePhotos(msg.from.id, { limit: 1 });
-    let avatarFileName = null;
+    if (msg.caption === CONTEST_TAG) {
+      // contest branch
+      const photoId = await contest.addPhoto(
+        filename,
+        chatId,
+        msg.from.username,
+      );
 
-    if (avatar.photos.length) {
-      const firstAvatar = avatar.photos[0][0];
+      if (!photoId) {
+        bot.sendMessage(
+          chatId,
+          `You can't add more than one photo to the current contest, sorry.`,
+        );
 
-      avatarFileName = await utils.downloadUserPicture(
-        firstAvatar.file_id,
-        msg.chat.id,
+        // TODO: remove file here
+        utils.deleteFile(filename);
+        return;
+      }
+
+      bot.sendMessage(
+        chatId,
+        `User ${name} has added photo to the contest (${photoId})`,
+      );
+
+      bot.sendMessage(
+        chatId,
+        `The photo has been added to the contest list, good luck!`,
         {
-          isUserPicture: true,
+          reply_to_message_id: msg.message_id,
         },
       );
-    }
+    } else {
+      // main branch
 
-    const watermark = name
-      ? `By ${name} for Postikortti Suomesta`
-      : "Postikortti Suomesta";
-    await utils.addWatermark(filename, watermark, avatarFileName);
+      const avatar = await bot.getUserProfilePhotos(msg.from.id, { limit: 1 });
+      let avatarFileName = null;
 
-    const collections = await connectToDatabase();
+      if (avatar.photos.length) {
+        const firstAvatar = avatar.photos[0][0];
 
-    const chatId = msg.chat.id;
+        avatarFileName = await utils.downloadUserPicture(
+          firstAvatar.file_id,
+          msg.chat.id,
+          {
+            isUserPicture: true,
+          },
+        );
+      }
 
-    console.log(new Date().toString(), " BOT got photo");
+      const watermark = name
+        ? `By ${name} for Postikortti Suomesta`
+        : "Postikortti Suomesta";
+      await utils.addWatermark(filename, watermark, avatarFileName);
 
-    bot.sendMessage(chatId, `The photo has been sent for approval`, {
-      reply_to_message_id: msg.message_id,
-    });
+      const collections = await connectToDatabase();
 
-    try {
-      const buffer = fs.readFileSync(filename);
-
-      const newMessage = await bot.sendPhoto(settings.adminGroup, buffer, {
-        caption: `${msg.caption || ""}\n${watermark}\n@nerdsbayPhoto`,
+      bot.sendMessage(chatId, `The photo has been sent for approval`, {
+        reply_to_message_id: msg.message_id,
       });
 
-      await collections.queue.insertOne({
-        user: chatId,
-        fileId: newMessage.photo[0].file_unique_id,
-        msgId: msg.message_id,
-      });
+      try {
+        const buffer = fs.readFileSync(filename);
 
-      utils.deleteFile(filename);
-    } catch (e) {
-      console.log("forward failed: ", e);
+        const newMessage = await bot.sendPhoto(settings.adminGroup, buffer, {
+          caption: `${msg.caption || ""}\n${watermark}\n@nerdsbayPhoto`,
+        });
+
+        await collections.queue.insertOne({
+          user: chatId,
+          fileId: newMessage.photo[0].file_unique_id,
+          msgId: msg.message_id,
+        });
+
+        utils.deleteFile(filename);
+      } catch (e) {
+        console.log("forward failed: ", e);
+      }
     }
   });
 
