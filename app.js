@@ -6,7 +6,7 @@ import { settings } from "./settings.js";
 import express from "express";
 const app = express();
 app.get("/", (req, res) => {
-  res.send("Express on Vercel");
+  res.send("Express");
 });
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {

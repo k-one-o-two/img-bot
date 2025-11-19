@@ -5,7 +5,6 @@ import { utils } from "./utils.js";
 const addPhoto = async (filename, userId, userName, displayName) => {
   const collections = await connectToDatabase();
   const existingRecord = await collections.contest.findOne({ userId });
-  console.info({ existingRecord });
   // return new Promise(async (resolve, reject) => {
   if (existingRecord) {
     // we already have this persons photo
@@ -14,7 +13,6 @@ const addPhoto = async (filename, userId, userName, displayName) => {
 
   // count to add to watermark
   const currentLength = await collections.contest.count({});
-  console.info({ currentLength });
   await utils.addWatermark(
     filename,
     `Best of 2025 contest: ${currentLength + 1}`,

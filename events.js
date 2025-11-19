@@ -28,8 +28,6 @@ export const setupBotEvents = (bot) => {
       if (avatar.photos.length) {
         const firstAvatar = avatar.photos[0][0];
 
-        console.info({ firstAvatar });
-
         return await utils.downloadUserPicture(firstAvatar.file_id, id, {
           isUserPicture: true,
         });
@@ -40,7 +38,6 @@ export const setupBotEvents = (bot) => {
 
     await Promise.all(
       contestEntries.map(async (entry, index) => {
-        console.info({ entry });
         const avatarFileName = await getUserPicture(entry.userId);
 
         await utils.addWatermark(

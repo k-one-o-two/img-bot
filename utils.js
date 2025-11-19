@@ -60,7 +60,6 @@ const downloadFile = async (file_path, chatId, options) => {
 };
 
 const addWatermark = async (fileName, watermark, avatarFileName, options) => {
-  console.info({ fileName }, { watermark });
   const image = await Jimp.read(path.join(__dirname, fileName));
   const border = 80;
   const { width, height } = image.bitmap;
@@ -74,7 +73,7 @@ const addWatermark = async (fileName, watermark, avatarFileName, options) => {
 
   const { height: targetHeight } = target.bitmap;
 
-  if (options.replace) {
+  if (options && options.replace) {
     const borderB = new Jimp({ width, height: border, color: 0xffffffff });
     target.composite(borderB, 0, targetHeight - border);
   }
