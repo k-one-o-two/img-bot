@@ -211,6 +211,23 @@ export const setupBotEvents = (bot) => {
           msgId: msg.message_id,
         });
 
+        const recordedUser = await collections.users.findOne({ id: chatId });
+
+        if (!recordedUser) {
+          await collections.users.insertOne({
+            id: chatId,
+            handle: msg.from.username,
+            photos: 1,
+            approved: 0,
+            rejected: 0,
+          });
+        } else {
+          await collections.users.updateOne(
+            { id: chatId },
+            { $inc: { photos: 1 } },
+          );
+        }
+
         utils.deleteFile(filename);
       } catch (e) {
         console.log("forward failed: ", e);
@@ -273,6 +290,10 @@ export const setupBotEvents = (bot) => {
       if (savedUser) {
         try {
           await collections.queue.deleteOne({ fileId });
+          await collections.users.updateOne(
+            { id: savedUser.user },
+            { $inc: { approved: 1 } },
+          );
           bot.sendMessage(
             savedUser.user,
             `The photo has been approved and added to the queue. ${
@@ -318,6 +339,11 @@ export const setupBotEvents = (bot) => {
       if (savedUser) {
         try {
           await collections.queue.deleteOne({ fileId });
+          await collections.users.updateOne(
+            { id: savedUser.user },
+            { $inc: { approved: 1 } },
+          );
+
           bot.sendMessage(
             savedUser.user,
             `The photo has been approved to be send next Saturday (off-topic day). ${
@@ -356,6 +382,10 @@ export const setupBotEvents = (bot) => {
       if (savedUser) {
         try {
           await collections.queue.deleteOne({ fileId });
+          await collections.users.updateOne(
+            { id: savedUser.user },
+            { $inc: { rejected: 1 } },
+          );
 
           bot.sendMessage(
             savedUser.user,
@@ -391,6 +421,11 @@ export const setupBotEvents = (bot) => {
 
       if (savedUser) {
         try {
+          await collections.users.updateOne(
+            { id: savedUser.user },
+            { $inc: { rejected: 1 } },
+          );
+
           const cid = savedUser.cid;
           collections.chatsArray.remove(cid);
           collections.chatsArray.save();

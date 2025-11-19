@@ -90,7 +90,7 @@ const addWatermark = async (fileName, watermark, avatarFileName, options) => {
     target.composite(avatar, 80, targetHeight - 70);
   }
 
-  const font = await loadFont(fonts.SANS_32_BLACK);
+  const font = await loadFont("./font/j-reg.fnt");
 
   target.print({
     font,
