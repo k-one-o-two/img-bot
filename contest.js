@@ -2,7 +2,7 @@ import { connectToDatabase } from "./db.js";
 
 import { utils } from "./utils.js";
 
-const addPhoto = async (filename, userId, userName) => {
+const addPhoto = async (filename, userId, userName, displayName) => {
   const collections = await connectToDatabase();
   const existingRecord = await collections.contest.findOne({ userId });
   console.info({ existingRecord });
@@ -23,6 +23,7 @@ const addPhoto = async (filename, userId, userName) => {
   await collections.contest.insertOne({
     userId,
     userName,
+    displayName,
     filename,
     photoIndex: currentLength + 1,
     votes: 0,

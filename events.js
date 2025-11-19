@@ -15,22 +15,10 @@ const __dirname = dirname(__filename);
 export const setupBotEvents = (bot) => {
   console.log("setupBotEvents");
 
-  // experimental
   bot.onText(/^vote$/i, async (msg) => {
     const chatId = msg.chat.id;
-    // const options = {
-    //   reply_markup: JSON.stringify({
-    //     inline_keyboard: [
-    //       [{ text: "Some button text 1", callback_data: "1" }],
-    //       [{ text: "Some button text 2", callback_data: "2" }],
-    //       [{ text: "Some button text 3", callback_data: "3" }],
-    //     ],
-    //   }),
-    // };
-    //
-    const contestEntries = await contest.getContestList();
 
-    console.info({ contestEntries });
+    const contestEntries = await contest.getContestList();
 
     const voteOptions = [];
 
@@ -45,9 +33,7 @@ export const setupBotEvents = (bot) => {
       }),
     );
 
-    console.info({ voteOptions });
-
-    const newMessage = await bot.sendMessage(msg.chat.id, "answer.");
+    const newMessage = await bot.sendMessage(msg.chat.id, "Cast your vote!");
     bot.editMessageReplyMarkup(
       {
         inline_keyboard: [voteOptions],
@@ -57,11 +43,10 @@ export const setupBotEvents = (bot) => {
         message_id: newMessage.message_id,
       },
     );
-    // bot.sendMessage(msg.chat.id, "answer.", option);
   });
 
+  // keyboard events
   bot.on("callback_query", async (msg) => {
-    console.info({ msg });
     const chatId = msg.from.id;
     const { data } = msg;
 
@@ -79,16 +64,15 @@ export const setupBotEvents = (bot) => {
     );
   });
 
-  // end
+  bot.on("text", async (msg) => {
+    if (utils.isInAdminGroup(msg)) {
+      return;
+    }
 
-  // bot.on("text", async (msg) => {
-  //   if (utils.isInAdminGroup(msg)) {
-  //     return;
-  //   }
+    const text = `User ${msg.from.first_name || msg.from.username} (@${msg.from.username || msg.from.id}) sent a message:\n${msg.text}`;
+    bot.sendMessage(settings.adminGroup, text);
+  });
 
-  //   const text = `User ${msg.from.first_name || msg.from.username} (@${msg.from.username || msg.from.id}) sent a message:\n${msg.text}`;
-  //   bot.sendMessage(settings.adminGroup, text);
-  // });
   bot.on("photo", async (msg) => {
     if (utils.isInAdminGroup(msg)) {
       return;
@@ -114,6 +98,7 @@ export const setupBotEvents = (bot) => {
         filename,
         chatId,
         msg.from.username,
+        msg.from.first_name,
       );
 
       if (!photoId) {
