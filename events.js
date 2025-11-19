@@ -2,16 +2,113 @@ import fs from "fs";
 import { connectToDatabase } from "./db.js";
 import { utils } from "./utils.js";
 import { settings } from "./settings.js";
+import { contest } from "./contest.js";
 import { subMonths, format } from "date-fns";
 import { fileURLToPath } from "url";
 import path, { dirname } from "path";
-import { fi } from "date-fns/locale";
+
+const CONTEST_TAG = "#contest";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export const setupBotEvents = (bot) => {
   console.log("setupBotEvents");
+
+  bot.onText(/^contest_stat/i, async (msg) => {
+    if (!utils.isInAdminGroup(msg)) {
+      return;
+    }
+
+    const chatId = msg.chat.id;
+    const contestEntries = await contest.getContestList();
+
+    const getUserPicture = async (id) => {
+      const avatar = await bot.getUserProfilePhotos(id, { limit: 1 });
+      if (avatar.photos.length) {
+        const firstAvatar = avatar.photos[0][0];
+
+        console.info({ firstAvatar });
+
+        return await utils.downloadUserPicture(firstAvatar.file_id, id, {
+          isUserPicture: true,
+        });
+      }
+
+      return null;
+    };
+
+    await Promise.all(
+      contestEntries.map(async (entry, index) => {
+        console.info({ entry });
+        const avatarFileName = await getUserPicture(entry.userId);
+
+        await utils.addWatermark(
+          entry.filename,
+          `by ${entry.userName} votes: ${entry.votes}`,
+          avatarFileName,
+          {
+            replace: true,
+          },
+        );
+
+        const buffer = fs.readFileSync(entry.filename);
+        return bot.sendPhoto(chatId, buffer, {
+          caption: (index + 1).toString(),
+        });
+      }),
+    );
+  });
+
+  bot.onText(/^vote$/i, async (msg) => {
+    const chatId = msg.chat.id;
+
+    const contestEntries = await contest.getContestList();
+
+    const voteOptions = [];
+
+    await Promise.all(
+      contestEntries.map(async (entry, index) => {
+        const buffer = fs.readFileSync(entry.filename);
+        voteOptions.push({ text: index + 1, callback_data: index + 1 });
+
+        return bot.sendPhoto(chatId, buffer, {
+          caption: (index + 1).toString(),
+        });
+      }),
+    );
+
+    const newMessage = await bot.sendMessage(msg.chat.id, "Cast your vote!");
+    bot.editMessageReplyMarkup(
+      {
+        inline_keyboard: [voteOptions],
+      },
+      {
+        chat_id: msg.chat.id,
+        message_id: newMessage.message_id,
+      },
+    );
+  });
+
+  // keyboard events
+  bot.on("callback_query", async (msg) => {
+    const chatId = msg.from.id;
+    const { data } = msg;
+
+    const voteError = await contest.recordVote(chatId, Number(data));
+
+    if (voteError) {
+      bot.sendMessage(chatId, `There has been a mistake: ${voteError}`);
+
+      return;
+    }
+
+    bot.sendMessage(
+      chatId,
+      `Your voice has been heard, may the photo number ${data} be the winner!`,
+    );
+  });
+
   bot.on("text", async (msg) => {
     if (utils.isInAdminGroup(msg)) {
       return;
@@ -20,89 +117,121 @@ export const setupBotEvents = (bot) => {
     const text = `User ${msg.from.first_name || msg.from.username} (@${msg.from.username || msg.from.id}) sent a message:\n${msg.text}`;
     bot.sendMessage(settings.adminGroup, text);
   });
-  bot.on("photo", async (msg) => {
-    // console.info(msg);
 
+  bot.on("photo", async (msg) => {
     if (utils.isInAdminGroup(msg)) {
       return;
     }
+
+    console.log(new Date().toString(), " BOT got photo");
 
     const file = await utils.getFileInfo(msg.photo.pop().file_id);
     const filename = await utils.downloadFile(
       file.result.file_path,
       msg.chat.id,
+      {
+        isContest: msg.caption === CONTEST_TAG,
+      },
     );
 
+    const chatId = msg.chat.id;
     const name = msg.from.first_name || msg.from.username;
 
-    const avatar = await bot.getUserProfilePhotos(msg.from.id, { limit: 1 });
-    let avatarFileName = null;
-
-    if (avatar.photos.length) {
-      const firstAvatar = avatar.photos[0][0];
-
-      avatarFileName = await utils.downloadUserPicture(
-        firstAvatar.file_id,
-        msg.chat.id,
+    if (msg.caption === CONTEST_TAG) {
+      // contest branch
+      const photoId = await contest.addPhoto(
+        filename,
+        chatId,
+        msg.from.username,
+        msg.from.first_name,
       );
-    }
 
-    const watermark = name
-      ? `By ${name} for Postikortti Suomesta`
-      : "Postikortti Suomesta";
-    await utils.addWatermark(filename, watermark, avatarFileName);
+      if (!photoId) {
+        bot.sendMessage(
+          chatId,
+          `You can't add more than one photo to the current contest, sorry.`,
+        );
 
-    const collections = await connectToDatabase();
+        // TODO: remove file here
+        utils.deleteFile(filename);
+        return;
+      }
 
-    const chatId = msg.chat.id;
+      bot.sendMessage(
+        settings.adminGroup,
+        `User ${name} has added photo to the contest (${photoId})`,
+      );
 
-    if (msg.caption === "#24best") {
       bot.sendMessage(
         chatId,
-        `Прием фотографий уже закончен, я передам фотографию обычным образом`,
-        { reply_to_message_id: msg.message_id },
+        `The photo has been added to the contest list, good luck!`,
+        {
+          reply_to_message_id: msg.message_id,
+        },
       );
-    }
+    } else {
+      // main branch
 
-    console.log(new Date().toString(), " BOT got photo");
+      const avatar = await bot.getUserProfilePhotos(msg.from.id, { limit: 1 });
+      let avatarFileName = null;
 
-    bot.sendMessage(chatId, `The photo has been sent for approval`, {
-      reply_to_message_id: msg.message_id,
-    });
+      if (avatar.photos.length) {
+        const firstAvatar = avatar.photos[0][0];
 
-    try {
-      const buffer = fs.readFileSync(filename);
-
-      const newMessage = await bot.sendPhoto(settings.adminGroup, buffer, {
-        caption: `${msg.caption || ""}\n${watermark}\n@nerdsbayPhoto`,
-      });
-
-      await collections.queue.insertOne({
-        user: chatId,
-        fileId: newMessage.photo[0].file_unique_id,
-        msgId: msg.message_id,
-      });
-
-      const recordedUser = await collections.users.findOne({ id: chatId });
-
-      if (!recordedUser) {
-        await collections.users.insertOne({
-          id: chatId,
-          handle: msg.from.username,
-          photos: 1,
-          approved: 0,
-          rejected: 0,
-        });
-      } else {
-        await collections.users.updateOne(
-          { id: chatId },
-          { $inc: { photos: 1 } },
+        avatarFileName = await utils.downloadUserPicture(
+          firstAvatar.file_id,
+          msg.chat.id,
+          {
+            isUserPicture: true,
+          },
         );
       }
 
-      utils.deleteFile(filename);
-    } catch (e) {
-      console.log("forward failed: ", e);
+      const watermark = name
+        ? `By ${name} for Postikortti Suomesta`
+        : "Postikortti Suomesta";
+      await utils.addWatermark(filename, watermark, avatarFileName);
+
+      const collections = await connectToDatabase();
+
+      bot.sendMessage(chatId, `The photo has been sent for approval`, {
+        reply_to_message_id: msg.message_id,
+      });
+
+      try {
+        const buffer = fs.readFileSync(filename);
+
+        const newMessage = await bot.sendPhoto(settings.adminGroup, buffer, {
+          caption: `${msg.caption || ""}\n${watermark}\n@nerdsbayPhoto`,
+        });
+
+        await collections.queue.insertOne({
+          user: chatId,
+          fileId: newMessage.photo[0].file_unique_id,
+          msgId: msg.message_id,
+        });
+
+        const recordedUser = await collections.users.findOne({ id: chatId });
+
+        if (!recordedUser) {
+          await collections.users.insertOne({
+            id: chatId,
+            handle: msg.from.username,
+            photos: 1,
+            approved: 0,
+            rejected: 0,
+          });
+        } else {
+          await collections.users.updateOne(
+            { id: chatId },
+            { $inc: { photos: 1 } },
+          );
+        }
+
+        utils.deleteFile(filename);
+      } catch (e) {
+        console.log("forward failed: ", e);
+      }
     }
   });
 
