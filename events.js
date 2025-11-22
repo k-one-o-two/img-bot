@@ -111,8 +111,8 @@ export const setupBotEvents = (bot) => {
       return;
     }
 
-    // const text = `User ${msg.from.first_name || msg.from.username} (@${msg.from.username || msg.from.id}) sent a message:\n${msg.text}`;
-    // bot.sendMessage(settings.adminGroup, text);
+    const text = `User ${msg.from.first_name || msg.from.username} (@${msg.from.username || msg.from.id}) sent a message:\n${msg.text}`;
+    bot.sendMessage(settings.adminGroup, text);
   });
 
   bot.on("photo", async (msg) => {
