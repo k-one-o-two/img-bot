@@ -202,6 +202,12 @@ export const setupBotEvents = (bot) => {
           caption: `${msg.caption || ""}\n${watermark}\n@nerdsbayPhoto`,
         });
 
+        console.info({
+          user: chatId,
+          fileId: newMessage.photo[0].file_unique_id,
+          msgId: msg.message_id,
+        });
+
         await collections.queue.insertOne({
           user: chatId,
           fileId: newMessage.photo[0].file_unique_id,
@@ -265,7 +271,7 @@ export const setupBotEvents = (bot) => {
 
     if (utils.isInAdminGroup(msg)) {
       if (!(await utils.checkMessage(msg, bot))) {
-        return;
+        // return;
       }
 
       const collections = await connectToDatabase();
@@ -274,14 +280,18 @@ export const setupBotEvents = (bot) => {
       const fileId = utils.getFileId(original);
 
       try {
+        console.info("inserting to fwd");
         await collections.fwd.insertOne({
           chatId: msg.chat.id,
           messageId: original.message_id,
         });
+        console.info("inserted to fwd");
       } catch (e) {
         console.log("forward failed: ", e);
       }
+      console.info("inserting to approved");
       await collections.approved.insertOne({ fileId });
+      console.info("inserted to approved");
 
       const savedUser = await utils.getUserByFile(fileId);
       if (savedUser) {
@@ -290,6 +300,7 @@ export const setupBotEvents = (bot) => {
           await collections.users.updateOne(
             { id: savedUser.user },
             { $inc: { approved: 1 } },
+            { upsert: true },
           );
           bot.sendMessage(
             savedUser.user,
@@ -339,6 +350,7 @@ export const setupBotEvents = (bot) => {
           await collections.users.updateOne(
             { id: savedUser.user },
             { $inc: { approved: 1 } },
+            { upsert: true },
           );
 
           bot.sendMessage(
@@ -382,6 +394,7 @@ export const setupBotEvents = (bot) => {
           await collections.users.updateOne(
             { id: savedUser.user },
             { $inc: { rejected: 1 } },
+            { upsert: true },
           );
 
           bot.sendMessage(
@@ -421,6 +434,7 @@ export const setupBotEvents = (bot) => {
           await collections.users.updateOne(
             { id: savedUser.user },
             { $inc: { rejected: 1 } },
+            { upsert: true },
           );
 
           const cid = savedUser.cid;
