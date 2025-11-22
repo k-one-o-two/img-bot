@@ -318,7 +318,7 @@ const squareImages = async (n, size) => {
 };
 
 const downloadPhoto = async (photo, client, name) => {
-  await client.connect();
+  // await client.connect();
 
   const file = new Api.InputPhotoFileLocation({
     id: photo.id,
@@ -328,7 +328,7 @@ const downloadPhoto = async (photo, client, name) => {
   });
   try {
     const buffer = await client.downloadFile(file, {
-      dcId: photo.dcId,
+      // dcId: photo.dcId,
     });
 
     fs.writeFileSync(name ? name : "output.jpg", buffer);
@@ -338,7 +338,7 @@ const downloadPhoto = async (photo, client, name) => {
 };
 
 const getBestOfCurrentMonth = async (client) => {
-  await client.connect();
+  // await client.connect();
 
   const req = {
     peer: settings.photoChannel,
@@ -394,7 +394,7 @@ const getBestOfCurrentMonth = async (client) => {
 };
 
 const getBestOfCurrentWeek = async (client) => {
-  await client.connect();
+  // await client.connect();
 
   fs.rmSync("output", { recursive: true, force: true });
   fs.mkdirSync("output", { recursive: true });
@@ -484,6 +484,9 @@ const login = async () => {
     phoneCode: settings.phoneCode,
   });
   const storeSession = new StoreSession("my_session");
+
+  storeSession.setDC(2, '149.154.167.41', 443);
+
   const client = new TelegramClient(
     storeSession,
     Number(settings.apiId),
@@ -497,6 +500,10 @@ const login = async () => {
     phoneCode: async () => await input.text("Code ?"),
     onError: (err) => console.log(err),
   });
+
+  // await client.connect();
+  //
+
 
   console.log("You should now be connected.");
 

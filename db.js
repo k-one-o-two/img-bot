@@ -5,7 +5,7 @@ const client = new MongoClient(settings.uri);
 
 export const connectToDatabase = async () => {
   try {
-    await client.connect();
+    // await client.connect();
     const database = client.db("img_bot");
 
     const approved = database.collection("approved");
