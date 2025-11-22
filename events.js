@@ -271,7 +271,7 @@ export const setupBotEvents = (bot) => {
 
     if (utils.isInAdminGroup(msg)) {
       if (!(await utils.checkMessage(msg, bot))) {
-        // return;
+        return;
       }
 
       const collections = await connectToDatabase();
