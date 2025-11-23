@@ -63,7 +63,7 @@ const tick = async () => {
   bot.forwardMessage(settings.photoChannel, message.chatId, message.messageId);
 
   const fileId = utils.getFileId(message);
-  const deleteRes = await collections.later.deleteOne({ fileId });
+  const deleteRes = await collections.fwd.deleteOne({ fileId });
   console.info({ deleteRes });
 };
 
