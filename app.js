@@ -44,7 +44,8 @@ const tick = async () => {
     );
 
     const fileId = utils.getFileId(message);
-    await collections.later.deleteOne({ fileId });
+    const deleteRes = await collections.later.deleteOne({ fileId });
+    console.info({ deleteRes });
   }
 
   console.log("tick", { messages });
@@ -62,7 +63,8 @@ const tick = async () => {
   bot.forwardMessage(settings.photoChannel, message.chatId, message.messageId);
 
   const fileId = utils.getFileId(message);
-  await collections.fwd.deleteOne({ fileId });
+  const deleteRes = await collections.later.deleteOne({ fileId });
+  console.info({ deleteRes });
 };
 
 setInterval(() => {
