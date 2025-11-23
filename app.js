@@ -21,10 +21,13 @@ setupBotEvents(bot);
 const collections = await connectToDatabase();
 
 const tick = async () => {
+  console.log("tick");
   const messages = await collections.fwd.find({}).toArray();
   const laterMessages = await collections.later.find({}).toArray();
 
   const isSaturday = new Date().getDay() === 6;
+
+  console.log("tick", { isSaturday });
 
   if (isSaturday && laterMessages && laterMessages.length) {
     const message = laterMessages[0];
@@ -44,11 +47,15 @@ const tick = async () => {
     await collections.later.deleteOne({ fileId });
   }
 
+  console.log("tick", { messages });
+
   if (!messages || !messages.length) {
     return;
   }
 
   const message = messages[0];
+
+  console.log("tick", { message });
 
   bot.sendMessage(settings.adminGroup, `Sending ${message.messageId}`);
 
