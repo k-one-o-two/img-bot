@@ -12,5 +12,5 @@ export const settings = {
   apiHash: process.env.API_HASH,
   uri: process.env.URI,
 
-  interval: 1000, //1000 * 60 * 30,
+  interval: 1000 * 60 * 30,
 };
