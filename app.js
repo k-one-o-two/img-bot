@@ -19,15 +19,12 @@ const bot = utils.createBot();
 setupBotEvents(bot);
 
 const tick = async () => {
-  console.log("tick");
   const collections = await connectToDatabase();
 
   const messages = await collections.fwd.find({}).toArray();
   const laterMessages = await collections.later.find({}).toArray();
 
   const isSaturday = new Date().getDay() === 6;
-
-  console.log("tick", { isSaturday });
 
   if (isSaturday && laterMessages && laterMessages.length) {
     const message = laterMessages[0];
@@ -43,8 +40,9 @@ const tick = async () => {
       message.messageId,
     );
 
-    const fileId = utils.getFileId(message);
-    const deleteRes = await collections.later.deleteOne({ fileId });
+    const deleteRes = await collections.later.deleteOne({
+      messageId: message.messageId,
+    });
     console.info({ deleteRes });
   }
 
@@ -56,14 +54,12 @@ const tick = async () => {
 
   const message = messages[0];
 
-  console.log("tick", { message });
-
   bot.sendMessage(settings.adminGroup, `Sending ${message.messageId}`);
-
   bot.forwardMessage(settings.photoChannel, message.chatId, message.messageId);
 
-  const fileId = utils.getFileId(message);
-  const deleteRes = await collections.fwd.deleteOne({ fileId });
+  const deleteRes = await collections.fwd.deleteOne({
+    messageId: message.messageId,
+  });
   console.info({ deleteRes });
 };
 
