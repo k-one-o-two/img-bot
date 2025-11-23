@@ -517,6 +517,8 @@ export const setupBotEvents = (bot) => {
         continue;
       }
 
+      // TODO : createReadStream
+
       const buffer = fs.readFileSync(
         path.join(__dirname, `square/output_square_${i}.jpg`),
       );

@@ -18,10 +18,10 @@ import { connectToDatabase } from "./db.js";
 const bot = utils.createBot();
 setupBotEvents(bot);
 
-const collections = await connectToDatabase();
-
 const tick = async () => {
   console.log("tick");
+  const collections = await connectToDatabase();
+
   const messages = await collections.fwd.find({}).toArray();
   const laterMessages = await collections.later.find({}).toArray();
 
