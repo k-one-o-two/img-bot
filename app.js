@@ -49,6 +49,7 @@ const tick = async () => {
   console.log("tick", { messages });
 
   if (!messages || !messages.length) {
+    console.log("nothing to send this time");
     return;
   }
 
