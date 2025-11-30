@@ -290,8 +290,6 @@ export const setupBotEvents = (bot) => {
       const approved = await collections.approved.insertOne({ fileId });
       console.info("inserted to approved", approved);
 
-      return;
-
       const savedUser = await utils.getUserByFile(fileId);
       if (savedUser) {
         try {

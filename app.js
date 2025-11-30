@@ -55,14 +55,14 @@ const tick = async () => {
 
   const message = messages[0];
 
-  const notify = bot.sendMessage(
+  const notify = await bot.sendMessage(
     settings.adminGroup,
     `Sending ${message.messageId}`,
   );
 
   console.info({ notify });
 
-  const forward = bot.forwardMessage(
+  const forward = await bot.forwardMessage(
     settings.photoChannel,
     message.chatId,
     message.messageId,
