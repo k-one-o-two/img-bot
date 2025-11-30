@@ -300,19 +300,30 @@ const squareImages = async (n, size) => {
       );
       const { width, height } = image.bitmap;
 
-      const isVertical = height > width;
+      const cropped = image.crop({
+        x: 0,
+        y: 0,
+        w: width,
+        h: height - 80,
+      });
+
+      const { width: croppedWidth, height: croppedHeight } = cropped.bitmap;
+
+      const isVertical = croppedHeight > croppedWidth;
 
       if (isVertical) {
-        const diff = height - width;
-        image.crop({ x: 0, y: diff / 2, h: width, w: width });
+        const diff = croppedHeight - croppedWidth;
+        cropped.crop({ x: 0, y: diff / 2, h: croppedWidth, w: croppedWidth });
       } else {
-        const diff = width - height;
-        image.crop({ y: 0, x: diff / 2, h: height, w: height });
+        const diff = croppedWidth - croppedHeight;
+        cropped.crop({ y: 0, x: diff / 2, h: croppedHeight, w: croppedHeight });
       }
 
-      image.resize({ w: Number(size) || 512, h: Number(size) || 512 }); // resize
+      cropped.resize({ w: Number(size) || 512, h: Number(size) || 512 }); // resize
 
-      return image.write(path.join(__dirname, `square/output_square_${i}.jpg`));
+      return cropped.write(
+        path.join(__dirname, `square/output_square_${i}.jpg`),
+      );
     }),
   );
 };
@@ -485,7 +496,7 @@ const login = async () => {
   });
   const storeSession = new StoreSession("my_session");
 
-  storeSession.setDC(2, '149.154.167.41', 443);
+  storeSession.setDC(2, "149.154.167.41", 443);
 
   const client = new TelegramClient(
     storeSession,
@@ -503,7 +514,6 @@ const login = async () => {
 
   // await client.connect();
   //
-
 
   console.log("You should now be connected.");
 
