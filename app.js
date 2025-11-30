@@ -54,8 +54,25 @@ const tick = async () => {
 
   const message = messages[0];
 
-  bot.sendMessage(settings.adminGroup, `Sending ${message.messageId}`);
-  bot.forwardMessage(settings.photoChannel, message.chatId, message.messageId);
+  const notify = bot.sendMessage(
+    settings.adminGroup,
+    `Sending ${message.messageId}`,
+  );
+
+  console.info({ notify });
+
+  const forward = bot.forwardMessage(
+    settings.photoChannel,
+    message.chatId,
+    message.messageId,
+  );
+
+  console.info({ forward });
+
+  if (!notify || !forward) {
+    console.error("Failed to send message or forward");
+    return;
+  }
 
   const deleteRes = await collections.fwd.deleteOne({
     messageId: message.messageId,
