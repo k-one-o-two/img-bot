@@ -279,16 +279,13 @@ export const setupBotEvents = (bot) => {
       const original = msg.reply_to_message;
       const fileId = utils.getFileId(original);
 
-      try {
-        console.info("inserting to fwd");
-        await collections.fwd.insertOne({
-          chatId: msg.chat.id,
-          messageId: original.message_id,
-        });
-        console.info("inserted to fwd");
-      } catch (e) {
-        console.log("forward failed: ", e);
-      }
+      console.info("inserting to fwd");
+      const fwd = await collections.fwd.insertOne({
+        chatId: msg.chat.id,
+        messageId: original.message_id,
+      });
+      console.info("inserted to fwd", fwd);
+
       console.info("inserting to approved");
       const approved = await collections.approved.insertOne({ fileId });
       console.info("inserted to approved", approved);
