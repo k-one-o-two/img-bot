@@ -290,8 +290,10 @@ export const setupBotEvents = (bot) => {
         console.log("forward failed: ", e);
       }
       console.info("inserting to approved");
-      await collections.approved.insertOne({ fileId });
-      console.info("inserted to approved");
+      const approved = await collections.approved.insertOne({ fileId });
+      console.info("inserted to approved", approved);
+
+      return;
 
       const savedUser = await utils.getUserByFile(fileId);
       if (savedUser) {
