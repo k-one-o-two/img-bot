@@ -286,6 +286,10 @@ export const setupBotEvents = (bot) => {
       });
       console.info("inserted to fwd", fwd);
 
+      const messages = await collections.fwd.find({}).toArray();
+
+      console.info({ messages });
+
       console.info("inserting to approved");
       const approved = await collections.approved.insertOne({ fileId });
       console.info("inserted to approved", approved);
