@@ -1,5 +1,5 @@
 import fs from "fs";
-import { connectToDatabase } from "./db.js";
+import { getCollections } from "./db.js";
 import { utils } from "./utils.js";
 import { settings } from "./settings.js";
 import { contest } from "./contest.js";
@@ -189,7 +189,7 @@ export const setupBotEvents = (bot) => {
         : "Postikortti Suomesta";
       await utils.addWatermark(filename, watermark, avatarFileName);
 
-      const collections = await connectToDatabase();
+      const collections = await getCollections();
 
       bot.sendMessage(chatId, `The photo has been sent for approval`, {
         reply_to_message_id: msg.message_id,
@@ -242,7 +242,7 @@ export const setupBotEvents = (bot) => {
     if (utils.isInAdminGroup(msg)) {
       return;
     }
-    const collections = await connectToDatabase();
+    const collections = await getCollections();
 
     console.log(new Date().toString(), " BOT got vide");
     const chatId = msg.chat.id;
@@ -274,7 +274,7 @@ export const setupBotEvents = (bot) => {
         return;
       }
 
-      const collections = await connectToDatabase();
+      const collections = await getCollections();
 
       const original = msg.reply_to_message;
       const fileId = utils.getFileId(original);
@@ -325,7 +325,7 @@ export const setupBotEvents = (bot) => {
         return;
       }
 
-      const collections = await connectToDatabase();
+      const collections = await getCollections();
 
       const original = msg.reply_to_message;
       const fileId = utils.getFileId(original);
@@ -379,7 +379,7 @@ export const setupBotEvents = (bot) => {
       const original = msg.reply_to_message;
       const fileId = utils.getFileId(original);
 
-      const collections = await connectToDatabase();
+      const collections = await getCollections();
 
       await collections.rejected.insertOne({ fileId });
 
@@ -415,7 +415,7 @@ export const setupBotEvents = (bot) => {
         return;
       }
 
-      const collections = await connectToDatabase();
+      const collections = await getCollections();
 
       const original = msg.reply_to_message;
       const fileId = utils.getFileId(original);
@@ -532,7 +532,7 @@ export const setupBotEvents = (bot) => {
       return;
     }
 
-    const collections = await connectToDatabase();
+    const collections = await getCollections();
 
     const messages = await collections.fwd.find({}).toArray();
     const delayedMessages = await collections.later.find({}).toArray();
@@ -558,7 +558,7 @@ export const setupBotEvents = (bot) => {
       return;
     }
 
-    const collections = await connectToDatabase();
+    const collections = await getCollections();
 
     const messages = await collections.queue.find({}).toArray();
 

@@ -1,9 +1,9 @@
-import { connectToDatabase } from "./db.js";
+import { getCollections } from "./db.js";
 
 import { utils } from "./utils.js";
 
 const addPhoto = async (filename, userId, userName, displayName) => {
-  const collections = await connectToDatabase();
+  const collections = await getCollections();
   const existingRecord = await collections.contest.findOne({ userId });
   // return new Promise(async (resolve, reject) => {
   if (existingRecord) {
@@ -31,14 +31,14 @@ const addPhoto = async (filename, userId, userName, displayName) => {
 };
 
 const getContestList = async () => {
-  const collections = await connectToDatabase();
+  const collections = await getCollections();
   const files = await collections.contest.find().toArray();
 
   return files;
 };
 
 const recordVote = async (voterUserId, photoIndex) => {
-  const collections = await connectToDatabase();
+  const collections = await getCollections();
 
   const hasVoted = await collections.voters.findOne({ voterUserId });
   if (hasVoted) {

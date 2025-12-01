@@ -1,4 +1,4 @@
-import { connectToDatabase } from "./db.js";
+import { getCollections } from "./db.js";
 
 const init = async () => {
   // const txt = database.collection("txt");
@@ -6,7 +6,7 @@ const init = async () => {
 };
 
 const setValue = async (key, value) => {
-  const collections = await connectToDatabase();
+  const collections = await getCollections();
 
   const existing = await collections.txt.findOne({ key });
   if (existing) {

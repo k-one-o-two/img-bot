@@ -1,6 +1,6 @@
 import fs from "fs";
 import { Readable } from "stream";
-import { connectToDatabase } from "./db.js";
+import { getCollections } from "./db.js";
 import { Jimp, loadFont } from "jimp";
 import * as fonts from "jimp/fonts";
 import { settings } from "./settings.js";
@@ -106,7 +106,7 @@ const deleteFile = (fileName) => {
 };
 
 const getUserByFile = async (fileId) => {
-  const collections = await connectToDatabase();
+  const collections = await getCollections();
   const item = await collections.queue.findOne({ fileId });
 
   return item;
@@ -127,7 +127,7 @@ const getFileId = (msg) => {
 };
 
 const checkMessage = async (msg, bot) => {
-  const collections = await connectToDatabase();
+  const collections = await getCollections();
   const chatId = msg.chat.id;
   const original = msg.reply_to_message;
 

@@ -13,13 +13,13 @@ app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
-import { connectToDatabase } from "./db.js";
+import { getCollections, init } from "./db.js";
 
 const bot = utils.createBot();
 setupBotEvents(bot);
 
 const tick = async () => {
-  const collections = await connectToDatabase();
+  const collections = await getCollections();
 
   const messages = await collections.fwd.find({}).toArray();
   const laterMessages = await collections.later.find({}).toArray();
@@ -81,10 +81,13 @@ const tick = async () => {
   console.info({ deleteRes });
 };
 
-setInterval(() => {
-  tick();
-}, settings.interval);
+const run = async () => {
+  await init();
+  setInterval(() => {
+    tick();
+  }, settings.interval);
+};
 
-tick();
+run();
 
 export default app;

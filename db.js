@@ -3,11 +3,16 @@ import { settings } from "./settings.js";
 
 const client = new MongoClient(settings.uri);
 
-export const connectToDatabase = async () => {
-  try {
-    // await client.connect();
-    const database = client.db("img_bot");
+let database;
 
+export const init = async () => {
+  database = client.db("img_bot");
+  await client.connect();
+  console.log("Connected to MongoDB");
+};
+
+export const getCollections = async () => {
+  try {
     const approved = database.collection("approved");
     const fwd = database.collection("fwd");
     const later = database.collection("later");
@@ -16,8 +21,6 @@ export const connectToDatabase = async () => {
     const contest = database.collection("contest");
     const voters = database.collection("voters");
     const users = database.collection("users");
-
-    console.log("Connected to MongoDB");
 
     return {
       approved,
