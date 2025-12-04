@@ -2,7 +2,6 @@ import fs from "fs";
 import { Readable } from "stream";
 import { getCollections } from "./db.js";
 import { Jimp, loadFont } from "jimp";
-import * as fonts from "jimp/fonts";
 import { settings } from "./settings.js";
 import { subMonths, startOfWeek, startOfMonth } from "date-fns";
 import { StoreSession } from "telegram/sessions/index.js";
@@ -59,22 +58,45 @@ const downloadFile = async (file_path, chatId, options) => {
   });
 };
 
+const isDark = (image) => {
+  const { width, height } = image.bitmap;
+
+  let colorSum = 0;
+
+  image.scan((_x, _y, idx) => {
+    const r = image.bitmap.data[idx];
+    const g = image.bitmap.data[idx + 1];
+    const b = image.bitmap.data[idx + 2];
+
+    const avg = Math.floor((r + g + b) / 3);
+    colorSum += avg;
+  });
+
+  const brightness = Math.floor(colorSum / (width * height));
+
+  return brightness < 128;
+};
+
 const addWatermark = async (fileName, watermark, avatarFileName, options) => {
   const image = await Jimp.read(path.join(__dirname, fileName));
   const border = 80;
   const { width, height } = image.bitmap;
 
+  const isDarkImage = isDark(image);
+
+  const color = isDarkImage ? 0x00000000 : 0xffffffff;
+
   const target = new Jimp({
     width,
     height: options && options.replace ? height : height + border,
-    color: 0xffffffff,
+    color,
   });
   target.composite(image, 0, 0);
 
   const { height: targetHeight } = target.bitmap;
 
   if (options && options.replace) {
-    const borderB = new Jimp({ width, height: border, color: 0xffffffff });
+    const borderB = new Jimp({ width, height: border, color });
     target.composite(borderB, 0, targetHeight - border);
   }
 
@@ -89,10 +111,11 @@ const addWatermark = async (fileName, watermark, avatarFileName, options) => {
     target.composite(avatar, 80, targetHeight - 70);
   }
 
-  const font = await loadFont("./font/j-reg.fnt");
+  const fontWhite = await loadFont("./font/j-white.fnt");
+  const fontBlack = await loadFont("./font/j-black.fnt");
 
   target.print({
-    font,
+    font: isDarkImage ? fontWhite : fontBlack,
     x: 150,
     y: targetHeight - 48,
     text: watermark,
