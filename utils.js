@@ -74,7 +74,7 @@ const isDark = (image) => {
 
   const brightness = Math.floor(colorSum / (width * height));
 
-  return brightness < 128;
+  return brightness < 50;
 };
 
 const addWatermark = async (fileName, watermark, avatarFileName, options) => {
