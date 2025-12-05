@@ -2,6 +2,7 @@ import fs from "fs";
 import { Readable } from "stream";
 import { getCollections } from "./db.js";
 import { Jimp, loadFont } from "jimp";
+import { rgbaToInt } from "@jimp/utils";
 import { settings } from "./settings.js";
 import { subMonths, startOfWeek, startOfMonth } from "date-fns";
 import { StoreSession } from "telegram/sessions/index.js";
@@ -10,6 +11,8 @@ import TelegramBot from "node-telegram-bot-api";
 import input from "input";
 import { fileURLToPath } from "url";
 import path, { dirname } from "path";
+
+const THRESHOLD = 0.2;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -82,6 +85,8 @@ const addWatermark = async (fileName, watermark, avatarFileName, options) => {
   const border = 80;
   const { width, height } = image.bitmap;
 
+  const palette = await extractPalette(image);
+
   const isDarkImage = isDark(image);
 
   const color = isDarkImage ? 0x00000000 : 0xffffffff;
@@ -120,6 +125,21 @@ const addWatermark = async (fileName, watermark, avatarFileName, options) => {
     y: targetHeight - 48,
     text: watermark,
   });
+
+  palette
+    .sort(
+      (a, b) =>
+        rgbaToInt(a.avg.red, a.avg.green, a.avg.blue, 255) -
+        rgbaToInt(b.avg.red, b.avg.green, b.avg.blue, 255),
+    )
+    .forEach((color, index) => {
+      const square = new Jimp({
+        width: 80,
+        height: 80,
+        color: rgbaToInt(color.avg.red, color.avg.green, color.avg.blue, 255),
+      });
+      target.composite(square, width - index * 80, height);
+    });
 
   await target.write(path.join(__dirname, fileName));
 };
@@ -551,6 +571,73 @@ const createBot = () => {
   return bot;
 };
 
+const d = (colorA, colorB) => {
+  return (
+    (Math.abs(colorB.red - colorA.red) +
+      Math.abs(colorB.green - colorA.green) +
+      Math.abs(colorB.blue - colorA.blue)) /
+    (3 * 0xff)
+  );
+};
+
+const middle = (colorA, colorB) => {
+  return {
+    red: Math.round((colorA.red + colorB.red) / 2),
+    green: Math.round((colorA.green + colorB.green) / 2),
+    blue: Math.round((colorA.blue + colorB.blue) / 2),
+  };
+};
+
+const getClosest = (palette, currentColor) => {
+  let closest = palette[0];
+  let closestDistance = d(closest.avg, currentColor);
+
+  for (let i = 1; i < palette.length; i++) {
+    const distance = d(palette[i].avg, currentColor);
+    if (distance < closestDistance) {
+      closest = palette[i];
+      closestDistance = distance;
+    }
+  }
+
+  return { closest, distance: closestDistance };
+};
+
+const extractPalette = async (image) => {
+  const palette = [];
+
+  image.scan((_x, _y, idx) => {
+    const currentColor = {
+      red: image.bitmap.data[idx],
+      green: image.bitmap.data[idx + 1],
+      blue: image.bitmap.data[idx + 2],
+    };
+
+    if (!palette.length) {
+      palette.push({
+        avg: currentColor,
+        count: 1,
+      });
+    } else {
+      const closestPaletteAverage = getClosest(palette, currentColor);
+
+      if (closestPaletteAverage.distance < THRESHOLD) {
+        closestPaletteAverage.closest.count++;
+        // closestPaletteAverage.closest.avg = middle(
+        //   closestPaletteAverage.closest.avg,
+        //   currentColor,
+        // );
+      } else {
+        palette.push({
+          avg: currentColor,
+          count: 1,
+        });
+      }
+    }
+  });
+
+  return palette;
+};
 export const utils = {
   randomIntFromInterval,
   getBestOfCurrentWeek,
