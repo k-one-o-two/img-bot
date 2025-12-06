@@ -38,32 +38,37 @@ export const setupBotEvents = (bot) => {
       return null;
     };
 
-    await Promise.all(
-      contestEntries.map(async (entry, index) => {
-        console.info({ index }, { entry });
+    for (const entry of contestEntries) {
+      const index = contestEntries.indexOf(entry);
+      console.info({ index }, { entry });
 
-        const avatarFileName = await getUserPicture(entry.userId);
+      const avatarFileName = await getUserPicture(entry.userId);
 
-        console.info({ avatarFileName });
+      console.info({ avatarFileName });
 
-        await utils.addWatermark(
-          entry.filename,
-          `by ${entry.userName} votes: ${entry.votes}`,
-          avatarFileName,
-          {
-            replace: true,
-          },
-        );
+      await utils.addWatermark(
+        entry.filename,
+        `by ${entry.userName} votes: ${entry.votes}`,
+        avatarFileName,
+        {
+          replace: true,
+        },
+      );
 
-        const buffer = fs.readFileSync(entry.filename);
+      const buffer = fs.readFileSync(entry.filename);
 
-        console.info(buffer);
+      console.info(buffer);
 
-        return bot.sendPhoto(chatId, buffer, {
-          caption: (index + 1).toString(),
-        });
-      }),
-    );
+      await bot.sendPhoto(chatId, buffer, {
+        caption: (index + 1).toString(),
+      });
+    }
+
+    // await Promise.all(
+    //   contestEntries.map(async (entry, index) => {
+
+    //   }),
+    // );
   });
 
   bot.onText(/^vote$/i, async (msg) => {
