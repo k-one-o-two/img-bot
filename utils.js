@@ -29,11 +29,9 @@ const getFileInfo = async (file_id) => {
 const downloadUserPicture = async (avatarFileId, userId) => {
   const avatarFileInfo = await getFileInfo(avatarFileId);
 
-  return await utils.downloadFile(
-    avatarFileInfo.result.file_path,
-    userId,
-    true,
-  );
+  return await utils.downloadFile(avatarFileInfo.result.file_path, userId, {
+    isUserPicture: true,
+  });
 };
 
 const downloadFile = async (file_path, chatId, options) => {

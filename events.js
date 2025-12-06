@@ -237,7 +237,7 @@ export const setupBotEvents = (bot) => {
           );
         }
 
-        utils.deleteFile(filename);
+        // utils.deleteFile(filename);
       } catch (e) {
         console.log("forward failed: ", e);
       }
