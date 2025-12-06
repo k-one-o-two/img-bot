@@ -142,7 +142,9 @@ const addWatermark = async (fileName, watermark, avatarFileName, options) => {
     });
 
   if (options && options.contestTarget) {
-    await target.write("./contest_result/" + fileName);
+    await target.write(
+      "./contest_result/" + fileName.replace("./contest/", ""),
+    );
   } else {
     target.write(path.join(__dirname, fileName));
   }
