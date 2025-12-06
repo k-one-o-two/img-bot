@@ -202,6 +202,7 @@ export const setupBotEvents = (bot) => {
       });
 
       try {
+        console.info({ filename });
         const buffer = fs.readFileSync(filename);
 
         const newMessage = await bot.sendPhoto(settings.adminGroup, buffer, {
@@ -236,8 +237,6 @@ export const setupBotEvents = (bot) => {
             { $inc: { photos: 1 } },
           );
         }
-
-        // utils.deleteFile(filename);
       } catch (e) {
         console.log("forward failed: ", e);
       }
