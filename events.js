@@ -40,11 +40,7 @@ export const setupBotEvents = (bot) => {
 
     for (const entry of contestEntries) {
       const index = contestEntries.indexOf(entry);
-      console.info({ index }, { entry });
-
       const avatarFileName = await getUserPicture(entry.userId);
-
-      console.info({ avatarFileName });
 
       await utils.addWatermark(
         entry.filename,
@@ -56,9 +52,10 @@ export const setupBotEvents = (bot) => {
         },
       );
 
-      const buffer = fs.readFileSync(entry.filename);
-
-      console.info(buffer);
+      //filename  "./contest/file_197668719_photos_file_94.jpg"
+      const buffer = fs.readFileSync(
+        entry.filename.replace("/contest/", "/contest_result/"),
+      );
 
       await bot.sendPhoto(chatId, buffer, {
         caption: (index + 1).toString(),
