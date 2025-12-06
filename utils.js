@@ -139,7 +139,7 @@ const addWatermark = async (fileName, watermark, avatarFileName, options) => {
       target.composite(
         square,
         width - index * 80,
-        options.contestTarget ? height - 80 : height,
+        options && options.contestTarget ? height - 80 : height,
       );
     });
 
