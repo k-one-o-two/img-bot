@@ -138,7 +138,11 @@ const addWatermark = async (fileName, watermark, avatarFileName, options) => {
         height: 80,
         color: rgbaToInt(color.avg.red, color.avg.green, color.avg.blue, 255),
       });
-      target.composite(square, width - index * 80, height);
+      target.composite(
+        square,
+        width - index * 80,
+        options && options.replace ? height - 80 : height,
+      );
     });
 
   if (options && options.contestTarget) {
