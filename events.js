@@ -23,7 +23,7 @@ export const setupBotEvents = (bot) => {
     const chatId = msg.chat.id;
     const contestEntries = await contest.getContestList();
 
-    console.info({ contestEntries });
+    // console.info({ contestEntries });
 
     const getUserPicture = async (id) => {
       const avatar = await bot.getUserProfilePhotos(id, { limit: 1 });
@@ -40,7 +40,11 @@ export const setupBotEvents = (bot) => {
 
     await Promise.all(
       contestEntries.map(async (entry, index) => {
+        console.info({ index }, { entry });
+
         const avatarFileName = await getUserPicture(entry.userId);
+
+        console.info({ avatarFileName });
 
         await utils.addWatermark(
           entry.filename,
@@ -52,6 +56,9 @@ export const setupBotEvents = (bot) => {
         );
 
         const buffer = fs.readFileSync(entry.filename);
+
+        console.info(buffer);
+
         return bot.sendPhoto(chatId, buffer, {
           caption: (index + 1).toString(),
         });
