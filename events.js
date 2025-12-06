@@ -23,6 +23,8 @@ export const setupBotEvents = (bot) => {
     const chatId = msg.chat.id;
     const contestEntries = await contest.getContestList();
 
+    console.info({ contestEntries });
+
     const getUserPicture = async (id) => {
       const avatar = await bot.getUserProfilePhotos(id, { limit: 1 });
       if (avatar.photos.length) {

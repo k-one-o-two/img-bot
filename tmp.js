@@ -75,14 +75,6 @@ const extract = async (fileName) => {
         });
       }
     }
-    // const r = image.bitmap.data[idx];
-    // const g = image.bitmap.data[idx + 1];
-    // const b = image.bitmap.data[idx + 2];
-
-    // const avg = Math.floor((r + g + b) / 3);
-    // colorSum += avg;
-    //
-    //
   });
 
   const target = new Jimp({
