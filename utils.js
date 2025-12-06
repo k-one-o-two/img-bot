@@ -141,7 +141,9 @@ const addWatermark = async (fileName, watermark, avatarFileName, options) => {
       target.composite(square, width - index * 80, height);
     });
 
-  await target.write(path.join(__dirname, fileName));
+  (await options.contestTarget)
+    ? target.write("./contest_result/" + fileName)
+    : target.write(path.join(__dirname, fileName));
 };
 
 const deleteFile = (fileName) => {

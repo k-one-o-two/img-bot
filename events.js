@@ -52,6 +52,7 @@ export const setupBotEvents = (bot) => {
         avatarFileName,
         {
           replace: true,
+          contestTarget: true,
         },
       );
 
@@ -63,12 +64,6 @@ export const setupBotEvents = (bot) => {
         caption: (index + 1).toString(),
       });
     }
-
-    // await Promise.all(
-    //   contestEntries.map(async (entry, index) => {
-
-    //   }),
-    // );
   });
 
   bot.onText(/^vote$/i, async (msg) => {
