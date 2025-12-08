@@ -190,8 +190,12 @@ export const setupBotEvents = (bot) => {
         );
       }
 
+      const strippedName = /[a-zA-Z\s0-9а-яА-Я\-_!?:#$%^*\\(\\)]+/
+        .exec(name)[0]
+        .trim();
+
       const watermark = name
-        ? `By ${name} for Postikortti Suomesta`
+        ? `By ${strippedName} for Postikortti Suomesta`
         : "Postikortti Suomesta";
       await utils.addWatermark(filename, watermark, avatarFileName);
 
