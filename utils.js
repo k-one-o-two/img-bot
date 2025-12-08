@@ -132,13 +132,13 @@ const addWatermark = async (fileName, watermark, avatarFileName, options) => {
     )
     .forEach((color, index) => {
       const square = new Jimp({
-        width: 80,
+        width: 40,
         height: 80,
         color: rgbaToInt(color.avg.red, color.avg.green, color.avg.blue, 255),
       });
       target.composite(
         square,
-        width - index * 80,
+        width - index * 40,
         options && options.contestTarget ? height - 80 : height,
       );
     });
