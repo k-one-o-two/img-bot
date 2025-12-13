@@ -303,9 +303,9 @@ export const setupBotEvents = (bot) => {
       const approved = await collections.approved.insertOne({ fileId });
       console.info("inserted to approved", approved);
 
+      const savedUser = await utils.getUserByFile(fileId);
       await collections.queue.deleteOne({ fileId });
 
-      const savedUser = await utils.getUserByFile(fileId);
       if (savedUser) {
         try {
           await collections.users.updateOne(
@@ -353,9 +353,10 @@ export const setupBotEvents = (bot) => {
         console.log("forward failed: ", e);
       }
       await collections.approved.insertOne({ fileId });
-      await collections.queue.deleteOne({ fileId });
 
       const savedUser = await utils.getUserByFile(fileId);
+      await collections.queue.deleteOne({ fileId });
+
       if (savedUser) {
         try {
           await collections.users.updateOne(
@@ -396,9 +397,9 @@ export const setupBotEvents = (bot) => {
       const collections = await getCollections();
 
       await collections.rejected.insertOne({ fileId });
-      await collections.queue.deleteOne({ fileId });
 
       const savedUser = await utils.getUserByFile(fileId);
+      await collections.queue.deleteOne({ fileId });
 
       if (savedUser) {
         try {
@@ -436,9 +437,8 @@ export const setupBotEvents = (bot) => {
 
       await collections.rejected.insertOne({ fileId });
 
-      await collections.queue.deleteOne({ fileId });
-
       const savedUser = await utils.getUserByFile(fileId);
+      await collections.queue.deleteOne({ fileId });
 
       if (savedUser) {
         try {

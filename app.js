@@ -46,10 +46,7 @@ const tick = async () => {
     console.info({ deleteRes });
   }
 
-  console.log("tick", { messages });
-
   if (!messages || !messages.length) {
-    console.log("nothing to send this time");
     return;
   }
 
