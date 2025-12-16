@@ -6,6 +6,10 @@ import { contest } from "./contest.js";
 import { subMonths, format } from "date-fns";
 import { fileURLToPath } from "url";
 import path, { dirname } from "path";
+import os from "os-utils";
+
+
+
 
 const CONTEST_TAG = "#contest";
 
@@ -109,12 +113,18 @@ export const setupBotEvents = (bot) => {
   });
 
   bot.on("text", async (msg) => {
+    os.cpuUsage(function (v) {
+      console.log(">> CPU Usage (%): " + v);
+    });
     if (utils.isInAdminGroup(msg)) {
       return;
     }
 
     const text = `User ${msg.from.first_name || msg.from.username} (@${msg.from.username || msg.from.id}) sent a message:\n${msg.text}`;
     bot.sendMessage(settings.adminGroup, text);
+    os.cpuUsage(function (v) {
+      console.log("<<CPU Usage (%): " + v);
+    });
   });
 
   bot.on("photo", async (msg) => {
@@ -292,8 +302,7 @@ export const setupBotEvents = (bot) => {
           );
           bot.sendMessage(
             savedUser.user,
-            `The photo has been approved and added to the queue. ${
-              comment ? `Comment from admins: "${comment}"` : ""
+            `The photo has been approved and added to the queue. ${comment ? `Comment from admins: "${comment}"` : ""
             }`,
             {
               reply_to_message_id: savedUser.msgId,
@@ -343,8 +352,7 @@ export const setupBotEvents = (bot) => {
 
           bot.sendMessage(
             savedUser.user,
-            `The photo has been approved to be send next Saturday (off-topic day). ${
-              comment ? `Comment from admins: "${comment}"` : ""
+            `The photo has been approved to be send next Saturday (off-topic day). ${comment ? `Comment from admins: "${comment}"` : ""
             }`,
             {
               reply_to_message_id: savedUser.msgId,
@@ -443,9 +451,8 @@ export const setupBotEvents = (bot) => {
     const buffer = fs.readFileSync(`./output_stamp.jpg`);
 
     bot.sendPhoto(chatId, buffer, {
-      caption: `Top photo of ${format(prevMonth, "MMMM yyyy")} with ${
-        bestOfTheMonth.reactionsCnt
-      } likes`,
+      caption: `Top photo of ${format(prevMonth, "MMMM yyyy")} with ${bestOfTheMonth.reactionsCnt
+        } likes`,
     });
   });
 
