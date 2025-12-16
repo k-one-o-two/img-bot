@@ -563,16 +563,22 @@ const login = async () => {
     onError: (err) => console.log(err),
   });
 
-  // await client.connect();
-  //
-
   return client;
 };
 
 const createBot = () => {
-  const bot = new TelegramBot(settings.token, { polling: true });
+  const bot = new TelegramBot(settings.token, {
+    polling: {
+      params: {
+        timeout: 30,
+        limit: 100,
+        drop_pending_updates: true,
+      },
+      autoStart: true,
+    }, webHook: { autoOpen: false }
+  });
   console.info("Started");
-  bot.on("polling_error", console.log);
+  // bot.on("polling_error", console.log);
 
   return bot;
 };
