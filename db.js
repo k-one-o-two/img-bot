@@ -8,7 +8,6 @@ let database;
 export const init = async () => {
   database = client.db("img_bot");
   await client.connect();
-  console.log("Connected to MongoDB");
   return database;
 };
 

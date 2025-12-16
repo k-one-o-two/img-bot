@@ -13,8 +13,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export const setupBotEvents = (bot) => {
-  console.log("setupBotEvents");
-
   bot.onText(/^contest_stat/i, async (msg) => {
     if (!utils.isInAdminGroup(msg)) {
       return;
@@ -22,8 +20,6 @@ export const setupBotEvents = (bot) => {
 
     const chatId = msg.chat.id;
     const contestEntries = await contest.getContestList();
-
-    // console.info({ contestEntries });
 
     const getUserPicture = async (id) => {
       const avatar = await bot.getUserProfilePhotos(id, { limit: 1 });
@@ -126,8 +122,6 @@ export const setupBotEvents = (bot) => {
       return;
     }
 
-    console.log(new Date().toString(), " BOT got photo");
-
     const file = await utils.getFileInfo(msg.photo.pop().file_id);
     const filename = await utils.downloadFile(
       file.result.file_path,
@@ -206,17 +200,10 @@ export const setupBotEvents = (bot) => {
       });
 
       try {
-        console.info({ filename });
         const buffer = fs.readFileSync(filename);
 
         const newMessage = await bot.sendPhoto(settings.adminGroup, buffer, {
           caption: `${msg.caption || ""}\n${watermark}\n@nerdsbayPhoto`,
-        });
-
-        console.info({
-          user: chatId,
-          fileId: newMessage.photo[0].file_unique_id,
-          msgId: msg.message_id,
         });
 
         await collections.queue.insertOne({
@@ -253,7 +240,6 @@ export const setupBotEvents = (bot) => {
     }
     const collections = await getCollections();
 
-    console.log(new Date().toString(), " BOT got vide");
     const chatId = msg.chat.id;
 
     bot.sendMessage(chatId, `The video has been sent for approval`, {
@@ -275,7 +261,6 @@ export const setupBotEvents = (bot) => {
 
   // confirm
   bot.onText(/^ok\s?(.*)/i, async (msg, match) => {
-    console.log(new Date().toString(), " BOT got message");
     const comment = match[1]; // the captured "comment"
 
     if (utils.isInAdminGroup(msg)) {
@@ -288,20 +273,12 @@ export const setupBotEvents = (bot) => {
       const original = msg.reply_to_message;
       const fileId = utils.getFileId(original);
 
-      console.info("inserting to fwd");
-      const fwd = await collections.fwd.insertOne({
+      await collections.fwd.insertOne({
         chatId: msg.chat.id,
         messageId: original.message_id,
       });
-      console.info("inserted to fwd", fwd);
 
-      const messages = await collections.fwd.find({}).toArray();
-
-      console.info({ messages });
-
-      console.info("inserting to approved");
-      const approved = await collections.approved.insertOne({ fileId });
-      console.info("inserted to approved", approved);
+      await collections.approved.insertOne({ fileId });
 
       const savedUser = await utils.getUserByFile(fileId);
       await collections.queue.deleteOne({ fileId });
@@ -331,7 +308,6 @@ export const setupBotEvents = (bot) => {
 
   // confirm: later
   bot.onText(/^later\s?(.*)/i, async (msg, match) => {
-    console.log(new Date().toString(), " BOT got message");
     const comment = match[1]; // the captured "comment"
 
     if (utils.isInAdminGroup(msg)) {
@@ -383,8 +359,6 @@ export const setupBotEvents = (bot) => {
 
   // reject
   bot.onText(/^no (.+)/i, async (msg, match) => {
-    console.log(new Date().toString(), " BOT got reject text");
-
     const resp = match[1]; // the captured "reason"
     if (utils.isInAdminGroup(msg)) {
       if (!(await utils.checkMessage(msg, bot))) {
@@ -423,8 +397,6 @@ export const setupBotEvents = (bot) => {
 
   // reject
   bot.onText(/^forget$/i, async (msg) => {
-    console.log(new Date().toString(), " BOT got reject text");
-
     if (utils.isInAdminGroup(msg)) {
       if (!(await utils.checkMessage(msg, bot))) {
         return;
@@ -478,7 +450,6 @@ export const setupBotEvents = (bot) => {
   });
 
   bot.onText(/^get_best_of_week$/i, async (msg) => {
-    console.log("get_best_of_week");
     const chatId = msg.chat.id;
 
     const size = 512;
@@ -502,19 +473,16 @@ export const setupBotEvents = (bot) => {
         path.join(__dirname, `square/output_square_${i}.jpg`),
       );
       buffers.push(buffer);
-      console.info(`Sending photo ${i + 1} of ${imagesLength}`);
       bot.sendPhoto(chatId, buffer);
     }
   });
 
   bot.onText(/^get_best_of_week\s(.+)$/i, async (msg, match) => {
-    console.log("get_best_of_week");
     const chatId = msg.chat.id;
 
     const size = match[1];
 
     const client = await utils.login();
-    // console.log(client);
     const imagesLength = await utils.getBestOfCurrentWeek(client);
 
     await utils.squareImages(imagesLength, size);
@@ -534,7 +502,6 @@ export const setupBotEvents = (bot) => {
         path.join(__dirname, `square/output_square_${i}.jpg`),
       );
       buffers.push(buffer);
-      console.info(`Sending photo ${i + 1} of ${imagesLength}`);
       bot.sendPhoto(chatId, buffer);
     }
   });
@@ -575,8 +542,6 @@ export const setupBotEvents = (bot) => {
     const collections = await getCollections();
 
     const messages = await collections.queue.find({}).toArray();
-
-    console.info(`found ${messages.length} messages`);
 
     if (!messages.length) {
       bot.sendMessage(chatId, "all good, no unchecked messages");

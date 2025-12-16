@@ -566,8 +566,6 @@ const login = async () => {
   // await client.connect();
   //
 
-  console.log("You should now be connected.");
-
   return client;
 };
 

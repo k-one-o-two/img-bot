@@ -3,15 +3,12 @@ import { utils } from "./utils.js";
 import { settings } from "./settings.js";
 // import { collections } from "./storage.js"
 // const express = require("express");
-import express from "express";
-const app = express();
-app.get("/", (req, res) => {
-  res.send("Express");
-});
-const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+// import express from "express";
+// const app = express();
+// app.get("/", (req, res) => {
+//   res.send("Express");
+// });
+// const PORT = process.env.PORT || 5001;
 
 import { getCollections, init } from "./db.js";
 
@@ -40,10 +37,9 @@ const tick = async () => {
       message.messageId,
     );
 
-    const deleteRes = await collections.later.deleteOne({
+    await collections.later.deleteOne({
       messageId: message.messageId,
     });
-    console.info({ deleteRes });
   }
 
   if (!messages || !messages.length) {
@@ -57,15 +53,11 @@ const tick = async () => {
     `Sending ${message.messageId}`,
   );
 
-  console.info({ notify });
-
   const forward = await bot.forwardMessage(
     settings.photoChannel,
     message.chatId,
     message.messageId,
   );
-
-  console.info({ forward });
 
   if (!notify || !forward) {
     console.error("Failed to send message or forward");
@@ -75,7 +67,6 @@ const tick = async () => {
   const deleteRes = await collections.fwd.deleteOne({
     messageId: message.messageId,
   });
-  console.info({ deleteRes });
 };
 
 const run = async () => {
@@ -86,5 +77,3 @@ const run = async () => {
 };
 
 run();
-
-export default app;
