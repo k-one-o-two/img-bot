@@ -8,9 +8,6 @@ import { fileURLToPath } from "url";
 import path, { dirname } from "path";
 import os from "os-utils";
 
-
-
-
 const CONTEST_TAG = "#contest";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -49,6 +46,7 @@ export const setupBotEvents = (bot) => {
         {
           replace: true,
           contestTarget: true,
+          noPalette: true,
         },
       );
 
@@ -302,7 +300,8 @@ export const setupBotEvents = (bot) => {
           );
           bot.sendMessage(
             savedUser.user,
-            `The photo has been approved and added to the queue. ${comment ? `Comment from admins: "${comment}"` : ""
+            `The photo has been approved and added to the queue. ${
+              comment ? `Comment from admins: "${comment}"` : ""
             }`,
             {
               reply_to_message_id: savedUser.msgId,
@@ -352,7 +351,8 @@ export const setupBotEvents = (bot) => {
 
           bot.sendMessage(
             savedUser.user,
-            `The photo has been approved to be send next Saturday (off-topic day). ${comment ? `Comment from admins: "${comment}"` : ""
+            `The photo has been approved to be send next Saturday (off-topic day). ${
+              comment ? `Comment from admins: "${comment}"` : ""
             }`,
             {
               reply_to_message_id: savedUser.msgId,
@@ -451,8 +451,9 @@ export const setupBotEvents = (bot) => {
     const buffer = fs.readFileSync(`./output_stamp.jpg`);
 
     bot.sendPhoto(chatId, buffer, {
-      caption: `Top photo of ${format(prevMonth, "MMMM yyyy")} with ${bestOfTheMonth.reactionsCnt
-        } likes`,
+      caption: `Top photo of ${format(prevMonth, "MMMM yyyy")} with ${
+        bestOfTheMonth.reactionsCnt
+      } likes`,
     });
   });
 
