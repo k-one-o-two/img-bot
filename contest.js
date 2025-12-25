@@ -16,6 +16,9 @@ const addPhoto = async (filename, userId, userName, displayName) => {
   await utils.addWatermark(
     filename,
     `Best of 2025 contest: ${currentLength + 1}`,
+    {
+      noPalette: true,
+    },
   );
 
   await collections.contest.insertOne({

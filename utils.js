@@ -83,8 +83,6 @@ const addWatermark = async (fileName, watermark, avatarFileName, options) => {
   const border = 80;
   const { width, height } = image.bitmap;
 
-  const palette = await extractPalette(image);
-
   const isDarkImage = isDark(image);
 
   const color = isDarkImage ? 0x00000000 : 0xffffffff;
@@ -124,24 +122,27 @@ const addWatermark = async (fileName, watermark, avatarFileName, options) => {
     text: watermark,
   });
 
-  palette
-    .sort(
-      (a, b) =>
-        rgbaToInt(a.avg.red, a.avg.green, a.avg.blue, 255) -
-        rgbaToInt(b.avg.red, b.avg.green, b.avg.blue, 255),
-    )
-    .forEach((color, index) => {
-      const square = new Jimp({
-        width: 40,
-        height: 80,
-        color: rgbaToInt(color.avg.red, color.avg.green, color.avg.blue, 255),
+  if (!options.noPalette) {
+    const palette = await extractPalette(image);
+    palette
+      .sort(
+        (a, b) =>
+          rgbaToInt(a.avg.red, a.avg.green, a.avg.blue, 255) -
+          rgbaToInt(b.avg.red, b.avg.green, b.avg.blue, 255),
+      )
+      .forEach((color, index) => {
+        const square = new Jimp({
+          width: 40,
+          height: 80,
+          color: rgbaToInt(color.avg.red, color.avg.green, color.avg.blue, 255),
+        });
+        target.composite(
+          square,
+          width - index * 40,
+          options && options.contestTarget ? height - 80 : height,
+        );
       });
-      target.composite(
-        square,
-        width - index * 40,
-        options && options.contestTarget ? height - 80 : height,
-      );
-    });
+  }
 
   if (options && options.contestTarget) {
     await target.write(
@@ -575,7 +576,8 @@ const createBot = () => {
         drop_pending_updates: true,
       },
       autoStart: true,
-    }, webHook: { autoOpen: false }
+    },
+    webHook: { autoOpen: false },
   });
   console.info("Started");
   // bot.on("polling_error", console.log);
