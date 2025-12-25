@@ -85,7 +85,7 @@ const addWatermark = async (fileName, watermark, avatarFileName, options) => {
 
   const isDarkImage = isDark(image);
 
-  const color = isDarkImage ? 0x00000000 : 0xffffffff;
+  const color = isDarkImage ? 0x000000ff : 0xffffffff;
 
   const target = new Jimp({
     width,
