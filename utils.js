@@ -122,7 +122,7 @@ const addWatermark = async (fileName, watermark, avatarFileName, options) => {
     text: watermark,
   });
 
-  if (!options.noPalette) {
+  if (options && !options.noPalette) {
     const palette = await extractPalette(image);
     palette
       .sort(
