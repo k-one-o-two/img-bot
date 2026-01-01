@@ -411,7 +411,7 @@ const getBestOfCurrentMonth = async (client) => {
   const result = await client.invoke(
     new Api.messages.GetHistory({
       ...req,
-      offsetDate: Date("2025-10-01"),
+      offsetDate: Date("2025-09-01"),
     }),
   );
 
