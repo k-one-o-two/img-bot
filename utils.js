@@ -405,7 +405,7 @@ const getBestOfCurrentMonth = async (client) => {
 
   const req = {
     peer: settings.photoChannel,
-    limit: 10000, // we hope it is more than one month
+    limit: 100000, // we hope it is more than one month
   };
 
   const result = await client.invoke(new Api.messages.GetHistory(req));
@@ -449,6 +449,8 @@ const getBestOfCurrentMonth = async (client) => {
       );
     })
     .sort((mA, mB) => mB.reactionsCnt - mA.reactionsCnt);
+
+  console.info({ mappedMessages });
 
   const bestOfTheMonth = mappedMessages[0];
   await downloadPhoto(bestOfTheMonth.photo, client);
