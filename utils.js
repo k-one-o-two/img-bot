@@ -283,7 +283,7 @@ const makePostcard = async () => {
       font,
       x: border,
       y: height - 50,
-      text: `postikortti suomesta, ${months[monthIndex]}`,
+      text: `postikortti suomesta, ${months[8]}`,
     });
   } else {
     stamp.resize({ h: height / 5 });
