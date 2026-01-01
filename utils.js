@@ -405,10 +405,15 @@ const getBestOfCurrentMonth = async (client) => {
 
   const req = {
     peer: settings.photoChannel,
-    limit: 100000, // we hope it is more than one month
+    limit: 10000, // we hope it is more than one month
   };
 
-  const result = await client.invoke(new Api.messages.GetHistory(req));
+  const result = await client.invoke(
+    new Api.messages.GetHistory({
+      ...req,
+      offsetDate: Date("2025-10-01"),
+    }),
+  );
 
   console.info({ result });
 
