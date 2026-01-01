@@ -283,7 +283,7 @@ const makePostcard = async () => {
       font,
       x: border,
       y: height - 50,
-      text: `postikortti suomesta, ${months[8]}`,
+      text: `postikortti suomesta, ${months[monthIndex]}`,
     });
   } else {
     stamp.resize({ h: height / 5 });
@@ -405,17 +405,10 @@ const getBestOfCurrentMonth = async (client) => {
 
   const req = {
     peer: settings.photoChannel,
-    limit: 10000, // we hope it is more than one month
+    limit: 1000, // we hope it is more than one month
   };
 
-  const result = await client.invoke(
-    new Api.messages.GetHistory({
-      ...req,
-      offsetDate: 1759276800,
-    }),
-  );
-
-  console.info({ result });
+  const result = await client.invoke(new Api.messages.GetHistory(req));
 
   let mappedMessages = await Promise.all(
     result.messages.map(async (message) => {
@@ -451,13 +444,11 @@ const getBestOfCurrentMonth = async (client) => {
       return (
         message &&
         message.date &&
-        new Date(message.date * 1000) >= new Date("2025-09-01") &&
-        new Date(message.date * 1000) < new Date("2025-10-01")
+        new Date(message.date * 1000) >= new Date(startOfPrevMonth) &&
+        new Date(message.date * 1000) < new Date(startOfCurMonth)
       );
     })
     .sort((mA, mB) => mB.reactionsCnt - mA.reactionsCnt);
-
-  console.info({ mappedMessages });
 
   const bestOfTheMonth = mappedMessages[0];
   await downloadPhoto(bestOfTheMonth.photo, client);
