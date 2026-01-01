@@ -410,6 +410,8 @@ const getBestOfCurrentMonth = async (client) => {
 
   const result = await client.invoke(new Api.messages.GetHistory(req));
 
+  console.info({ result });
+
   let mappedMessages = await Promise.all(
     result.messages.map(async (message) => {
       let reactionsCnt = 0;
