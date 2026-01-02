@@ -78,6 +78,15 @@ export const setupBotEvents = (bot) => {
       });
     }
 
+    // Source - https://stackoverflow.com/a/64777515
+    // Posted by nkitku, modified by community. See post 'Timeline' for change history
+    // Retrieved 2026-01-03, License - CC BY-SA 4.0
+
+    const chunk = (a, n) =>
+      [...Array(Math.ceil(a.length / n))].map((_, i) =>
+        a.slice(n * i, n + n * i),
+      );
+
     // await Promise.all(
     //   contestEntries.map(async (entry, index) => {
     //     const buffer = fs.readFileSync(entry.filename);
@@ -93,7 +102,7 @@ export const setupBotEvents = (bot) => {
     const newMessage = await bot.sendMessage(msg.chat.id, "Cast your vote!");
     bot.editMessageReplyMarkup(
       {
-        inline_keyboard: [voteOptions],
+        inline_keyboard: chunk(voteOptions, 3),
       },
       {
         chat_id: msg.chat.id,
