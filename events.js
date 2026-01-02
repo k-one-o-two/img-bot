@@ -163,37 +163,44 @@ export const setupBotEvents = (bot) => {
     const name = msg.from.first_name || msg.from.username;
 
     if (msg.caption === CONTEST_TAG) {
-      // contest branch
-      const photoId = await contest.addPhoto(
-        filename,
-        chatId,
-        msg.from.username,
-        msg.from.first_name,
-      );
-
-      if (!photoId) {
-        bot.sendMessage(
-          chatId,
-          `You can't add more than one photo to the current contest, sorry.`,
-        );
-
-        // TODO: remove file here
-        utils.deleteFile(filename);
-        return;
-      }
-
-      bot.sendMessage(
-        settings.adminGroup,
-        `User ${name} has added photo to the contest (${photoId})`,
-      );
-
       bot.sendMessage(
         chatId,
-        `The photo has been added to the contest list, good luck!`,
-        {
-          reply_to_message_id: msg.message_id,
-        },
+        `Sorry, this contest is in the voting stage already. You can't add more photos.`,
       );
+
+      return;
+
+      // // contest branch
+      // const photoId = await contest.addPhoto(
+      //   filename,
+      //   chatId,
+      //   msg.from.username,
+      //   msg.from.first_name,
+      // );
+
+      // if (!photoId) {
+      //   bot.sendMessage(
+      //     chatId,
+      //     `You can't add more than one photo to the current contest, sorry.`,
+      //   );
+
+      //   // TODO: remove file here
+      //   utils.deleteFile(filename);
+      //   return;
+      // }
+
+      // bot.sendMessage(
+      //   settings.adminGroup,
+      //   `User ${name} has added photo to the contest (${photoId})`,
+      // );
+
+      // bot.sendMessage(
+      //   chatId,
+      //   `The photo has been added to the contest list, good luck!`,
+      //   {
+      //     reply_to_message_id: msg.message_id,
+      //   },
+      // );
     } else {
       // main branch
 
