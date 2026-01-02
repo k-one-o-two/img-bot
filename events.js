@@ -88,6 +88,7 @@ export const setupBotEvents = (bot) => {
     //     });
     //   }),
     // );
+    console.log("Vote options:", voteOptions);
 
     const newMessage = await bot.sendMessage(msg.chat.id, "Cast your vote!");
     bot.editMessageReplyMarkup(
