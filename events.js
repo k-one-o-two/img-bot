@@ -68,16 +68,26 @@ export const setupBotEvents = (bot) => {
 
     const voteOptions = [];
 
-    await Promise.all(
-      contestEntries.map(async (entry, index) => {
-        const buffer = fs.readFileSync(entry.filename);
-        voteOptions.push({ text: index + 1, callback_data: index + 1 });
+    for (const entry of contestEntries) {
+      const index = contestEntries.indexOf(entry);
+      const buffer = fs.readFileSync(entry.filename);
+      voteOptions.push({ text: index + 1, callback_data: index + 1 });
 
-        return bot.sendPhoto(chatId, buffer, {
-          caption: (index + 1).toString(),
-        });
-      }),
-    );
+      await bot.sendPhoto(chatId, buffer, {
+        caption: (index + 1).toString(),
+      });
+    }
+
+    // await Promise.all(
+    //   contestEntries.map(async (entry, index) => {
+    //     const buffer = fs.readFileSync(entry.filename);
+    //     voteOptions.push({ text: index + 1, callback_data: index + 1 });
+
+    //     return bot.sendPhoto(chatId, buffer, {
+    //       caption: (index + 1).toString(),
+    //     });
+    //   }),
+    // );
 
     const newMessage = await bot.sendMessage(msg.chat.id, "Cast your vote!");
     bot.editMessageReplyMarkup(
