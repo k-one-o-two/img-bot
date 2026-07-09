@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "outDir": "./dist",
+    "rootDir": "./",
+    "strict": true,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "allowJs": false,
+    "sourceMap": true
+  },
+  "include": ["*.ts", "types/**/*.d.ts"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "output",
+    "square",
+    "assets",
+    "contest",
+    "contest_result",
+    "font",
+    "my_session",
+    "stamps",
+    "24"
+  ]
+}

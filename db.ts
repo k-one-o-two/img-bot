@@ -1,17 +1,28 @@
-import { MongoClient } from "mongodb";
+import { MongoClient, type Db, type Collection } from "mongodb";
 import { settings } from "./settings.js";
 
 const client = new MongoClient(settings.uri);
 
-let database;
+let database: Db;
 
-export const init = async () => {
+export const init = async (): Promise<Db> => {
   database = client.db("img_bot");
   await client.connect();
   return database;
 };
 
-export const getCollections = async () => {
+export interface Collections {
+  approved: Collection;
+  fwd: Collection;
+  later: Collection;
+  queue: Collection;
+  rejected: Collection;
+  contest: Collection;
+  voters: Collection;
+  users: Collection;
+}
+
+export const getCollections = async (): Promise<Collections> => {
   return {
     get approved() {
       return database.collection("approved");

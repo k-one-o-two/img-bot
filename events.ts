@@ -7,17 +7,19 @@ import { subMonths, format } from "date-fns";
 import { fileURLToPath } from "url";
 import path, { dirname } from "path";
 import os from "os-utils";
-
-
-
+import type {
+  TelegramBot,
+  Message,
+  CallbackQuery,
+} from "node-telegram-bot-api";
 
 const CONTEST_TAG = "#contest";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-export const setupBotEvents = (bot) => {
-  bot.onText(/^contest_stat/i, async (msg) => {
+export const setupBotEvents = (bot: TelegramBot): void => {
+  bot.onText(/^contest_stat/i, async (msg: Message) => {
     if (!utils.isInAdminGroup(msg)) {
       return;
     }
@@ -25,14 +27,12 @@ export const setupBotEvents = (bot) => {
     const chatId = msg.chat.id;
     const contestEntries = await contest.getContestList();
 
-    const getUserPicture = async (id) => {
+    const getUserPicture = async (id: number): Promise<string | null> => {
       const avatar = await bot.getUserProfilePhotos(id, { limit: 1 });
       if (avatar.photos.length) {
         const firstAvatar = avatar.photos[0][0];
 
-        return await utils.downloadUserPicture(firstAvatar.file_id, id, {
-          isUserPicture: true,
-        });
+        return await utils.downloadUserPicture(firstAvatar.file_id, id);
       }
 
       return null;
@@ -63,17 +63,20 @@ export const setupBotEvents = (bot) => {
     }
   });
 
-  bot.onText(/^vote$/i, async (msg) => {
+  bot.onText(/^vote$/i, async (msg: Message) => {
     const chatId = msg.chat.id;
 
     const contestEntries = await contest.getContestList();
 
-    const voteOptions = [];
+    const voteOptions: { text: string; callback_data: string }[] = [];
 
     await Promise.all(
       contestEntries.map(async (entry, index) => {
         const buffer = fs.readFileSync(entry.filename);
-        voteOptions.push({ text: index + 1, callback_data: index + 1 });
+        voteOptions.push({
+          text: (index + 1).toString(),
+          callback_data: (index + 1).toString(),
+        });
 
         return bot.sendPhoto(chatId, buffer, {
           caption: (index + 1).toString(),
@@ -94,9 +97,9 @@ export const setupBotEvents = (bot) => {
   });
 
   // keyboard events
-  bot.on("callback_query", async (msg) => {
-    const chatId = msg.from.id;
-    const { data } = msg;
+  bot.on("callback_query", async (query: CallbackQuery) => {
+    const chatId = query.from.id;
+    const { data } = query;
 
     const voteError = await contest.recordVote(chatId, Number(data));
 
@@ -112,27 +115,27 @@ export const setupBotEvents = (bot) => {
     );
   });
 
-  bot.on("text", async (msg) => {
-    os.cpuUsage(function (v) {
+  bot.on("text", async (msg: Message) => {
+    os.cpuUsage(function (v: number) {
       console.log(">> CPU Usage (%): " + v);
     });
     if (utils.isInAdminGroup(msg)) {
       return;
     }
 
-    const text = `User ${msg.from.first_name || msg.from.username} (@${msg.from.username || msg.from.id}) sent a message:\n${msg.text}`;
+    const text = `User ${msg.from?.first_name || msg.from?.username} (@${msg.from?.username || msg.from?.id}) sent a message:\n${msg.text}`;
     bot.sendMessage(settings.adminGroup, text);
-    os.cpuUsage(function (v) {
+    os.cpuUsage(function (v: number) {
       console.log("<<CPU Usage (%): " + v);
     });
   });
 
-  bot.on("photo", async (msg) => {
+  bot.on("photo", async (msg: Message) => {
     if (utils.isInAdminGroup(msg)) {
       return;
     }
 
-    const file = await utils.getFileInfo(msg.photo.pop().file_id);
+    const file = await utils.getFileInfo(msg.photo!.pop()!.file_id);
     const filename = await utils.downloadFile(
       file.result.file_path,
       msg.chat.id,
@@ -142,15 +145,15 @@ export const setupBotEvents = (bot) => {
     );
 
     const chatId = msg.chat.id;
-    const name = msg.from.first_name || msg.from.username;
+    const name = msg.from?.first_name || msg.from?.username;
 
     if (msg.caption === CONTEST_TAG) {
       // contest branch
       const photoId = await contest.addPhoto(
         filename,
         chatId,
-        msg.from.username,
-        msg.from.first_name,
+        msg.from?.username,
+        msg.from?.first_name,
       );
 
       if (!photoId) {
@@ -173,14 +176,14 @@ export const setupBotEvents = (bot) => {
         chatId,
         `The photo has been added to the contest list, good luck!`,
         {
-          reply_to_message_id: msg.message_id,
+          reply_parameters: { message_id: msg.message_id },
         },
       );
     } else {
       // main branch
 
-      const avatar = await bot.getUserProfilePhotos(msg.from.id, { limit: 1 });
-      let avatarFileName = null;
+      const avatar = await bot.getUserProfilePhotos(msg.from!.id, { limit: 1 });
+      let avatarFileName: string | null = null;
 
       if (avatar.photos.length) {
         const firstAvatar = avatar.photos[0][0];
@@ -188,14 +191,11 @@ export const setupBotEvents = (bot) => {
         avatarFileName = await utils.downloadUserPicture(
           firstAvatar.file_id,
           msg.chat.id,
-          {
-            isUserPicture: true,
-          },
         );
       }
 
       const strippedName = /[a-zA-Z\s0-9а-яА-Я\-_!?:#$%^*\\(\\)]+/
-        .exec(name)[0]
+        .exec(name || "")![0]
         .trim();
 
       const watermark = name
@@ -206,7 +206,7 @@ export const setupBotEvents = (bot) => {
       const collections = await getCollections();
 
       bot.sendMessage(chatId, `The photo has been sent for approval`, {
-        reply_to_message_id: msg.message_id,
+        reply_parameters: { message_id: msg.message_id },
       });
 
       try {
@@ -218,7 +218,7 @@ export const setupBotEvents = (bot) => {
 
         await collections.queue.insertOne({
           user: chatId,
-          fileId: newMessage.photo[0].file_unique_id,
+          fileId: newMessage.photo![0].file_unique_id,
           msgId: msg.message_id,
         });
 
@@ -227,7 +227,7 @@ export const setupBotEvents = (bot) => {
         if (!recordedUser) {
           await collections.users.insertOne({
             id: chatId,
-            handle: msg.from.username,
+            handle: msg.from?.username,
             photos: 1,
             approved: 0,
             rejected: 0,
@@ -244,7 +244,7 @@ export const setupBotEvents = (bot) => {
     }
   });
 
-  bot.on("video", async (msg) => {
+  bot.on("video", async (msg: Message) => {
     if (utils.isInAdminGroup(msg)) {
       return;
     }
@@ -253,12 +253,12 @@ export const setupBotEvents = (bot) => {
     const chatId = msg.chat.id;
 
     bot.sendMessage(chatId, `The video has been sent for approval`, {
-      reply_to_message_id: msg.message_id,
+      reply_parameters: { message_id: msg.message_id },
     });
 
     await collections.queue.insertOne({
       user: chatId,
-      fileId: msg.video.file_unique_id,
+      fileId: msg.video!.file_unique_id,
       msgId: msg.message_id,
     });
 
@@ -270,8 +270,8 @@ export const setupBotEvents = (bot) => {
   });
 
   // confirm
-  bot.onText(/^ok\s?(.*)/i, async (msg, match) => {
-    const comment = match[1]; // the captured "comment"
+  bot.onText(/^ok\s?(.*)/i, async (msg: Message, match) => {
+    const comment = match?.[1]; // the captured "comment"
 
     if (utils.isInAdminGroup(msg)) {
       if (!(await utils.checkMessage(msg, bot))) {
@@ -280,7 +280,7 @@ export const setupBotEvents = (bot) => {
 
       const collections = await getCollections();
 
-      const original = msg.reply_to_message;
+      const original = msg.reply_to_message!;
       const fileId = utils.getFileId(original);
 
       await collections.fwd.insertOne({
@@ -302,10 +302,11 @@ export const setupBotEvents = (bot) => {
           );
           bot.sendMessage(
             savedUser.user,
-            `The photo has been approved and added to the queue. ${comment ? `Comment from admins: "${comment}"` : ""
+            `The photo has been approved and added to the queue. ${
+              comment ? `Comment from admins: "${comment}"` : ""
             }`,
             {
-              reply_to_message_id: savedUser.msgId,
+              reply_parameters: { message_id: savedUser.msgId },
             },
           );
         } catch (e) {
@@ -316,8 +317,8 @@ export const setupBotEvents = (bot) => {
   });
 
   // confirm: later
-  bot.onText(/^later\s?(.*)/i, async (msg, match) => {
-    const comment = match[1]; // the captured "comment"
+  bot.onText(/^later\s?(.*)/i, async (msg: Message, match) => {
+    const comment = match?.[1]; // the captured "comment"
 
     if (utils.isInAdminGroup(msg)) {
       if (!(await utils.checkMessage(msg, bot))) {
@@ -326,7 +327,7 @@ export const setupBotEvents = (bot) => {
 
       const collections = await getCollections();
 
-      const original = msg.reply_to_message;
+      const original = msg.reply_to_message!;
       const fileId = utils.getFileId(original);
 
       try {
@@ -352,10 +353,11 @@ export const setupBotEvents = (bot) => {
 
           bot.sendMessage(
             savedUser.user,
-            `The photo has been approved to be send next Saturday (off-topic day). ${comment ? `Comment from admins: "${comment}"` : ""
+            `The photo has been approved to be send next Saturday (off-topic day). ${
+              comment ? `Comment from admins: "${comment}"` : ""
             }`,
             {
-              reply_to_message_id: savedUser.msgId,
+              reply_parameters: { message_id: savedUser.msgId },
             },
           );
         } catch (e) {
@@ -366,14 +368,14 @@ export const setupBotEvents = (bot) => {
   });
 
   // reject
-  bot.onText(/^no (.+)/i, async (msg, match) => {
-    const resp = match[1]; // the captured "reason"
+  bot.onText(/^no (.+)/i, async (msg: Message, match) => {
+    const resp = match?.[1]; // the captured "reason"
     if (utils.isInAdminGroup(msg)) {
       if (!(await utils.checkMessage(msg, bot))) {
         return;
       }
 
-      const original = msg.reply_to_message;
+      const original = msg.reply_to_message!;
       const fileId = utils.getFileId(original);
 
       const collections = await getCollections();
@@ -394,7 +396,7 @@ export const setupBotEvents = (bot) => {
           bot.sendMessage(
             savedUser.user,
             `The photo has been rejected, reason: "${resp}"`,
-            { reply_to_message_id: savedUser.msgId },
+            { reply_parameters: { message_id: savedUser.msgId } },
           );
         } catch (e) {
           console.log("replying to user failed: ", e);
@@ -404,7 +406,7 @@ export const setupBotEvents = (bot) => {
   });
 
   // reject
-  bot.onText(/^forget$/i, async (msg) => {
+  bot.onText(/^forget$/i, async (msg: Message) => {
     if (utils.isInAdminGroup(msg)) {
       if (!(await utils.checkMessage(msg, bot))) {
         return;
@@ -412,7 +414,7 @@ export const setupBotEvents = (bot) => {
 
       const collections = await getCollections();
 
-      const original = msg.reply_to_message;
+      const original = msg.reply_to_message!;
       const fileId = utils.getFileId(original);
 
       await collections.rejected.insertOne({ fileId });
@@ -427,10 +429,6 @@ export const setupBotEvents = (bot) => {
             { $inc: { rejected: 1 } },
             { upsert: true },
           );
-
-          const cid = savedUser.cid;
-          collections.chatsArray.remove(cid);
-          collections.chatsArray.save();
         } catch (e) {
           console.log("removing chat failed: ", e);
         }
@@ -438,7 +436,7 @@ export const setupBotEvents = (bot) => {
     }
   });
 
-  bot.onText(/^get_best_of_month$/i, async (msg) => {
+  bot.onText(/^get_best_of_month$/i, async (msg: Message) => {
     const chatId = msg.chat.id;
 
     const prevMonth = subMonths(new Date(), 1);
@@ -451,23 +449,23 @@ export const setupBotEvents = (bot) => {
     const buffer = fs.readFileSync(`./output_stamp.jpg`);
 
     bot.sendPhoto(chatId, buffer, {
-      caption: `Top photo of ${format(prevMonth, "MMMM yyyy")} with ${bestOfTheMonth.reactionsCnt
-        } likes`,
+      caption: `Top photo of ${format(prevMonth, "MMMM yyyy")} with ${
+        bestOfTheMonth.reactionsCnt
+      } likes`,
     });
   });
 
-  bot.onText(/^get_best_of_week$/i, async (msg) => {
+  bot.onText(/^get_best_of_week$/i, async (msg: Message) => {
     const chatId = msg.chat.id;
 
     const size = 512;
 
     const client = await utils.login();
-    // console.log(client);
     const imagesLength = await utils.getBestOfCurrentWeek(client);
 
     await utils.squareImages(imagesLength, size);
 
-    const buffers = [];
+    const buffers: Buffer[] = [];
     for (let i = 0; i < imagesLength; i++) {
       if (
         !fs.existsSync(path.join(__dirname, `square/output_square_${i}.jpg`))
@@ -484,17 +482,17 @@ export const setupBotEvents = (bot) => {
     }
   });
 
-  bot.onText(/^get_best_of_week\s(.+)$/i, async (msg, match) => {
+  bot.onText(/^get_best_of_week\s(.+)$/i, async (msg: Message, match) => {
     const chatId = msg.chat.id;
 
-    const size = match[1];
+    const size = match?.[1];
 
     const client = await utils.login();
     const imagesLength = await utils.getBestOfCurrentWeek(client);
 
-    await utils.squareImages(imagesLength, size);
+    await utils.squareImages(imagesLength, size ?? 512);
 
-    const buffers = [];
+    const buffers: Buffer[] = [];
     for (let i = 0; i < imagesLength; i++) {
       if (
         !fs.existsSync(path.join(__dirname, `square/output_square_${i}.jpg`))
@@ -513,7 +511,7 @@ export const setupBotEvents = (bot) => {
     }
   });
 
-  bot.onText(/^show_fwd_queue$/i, async (msg) => {
+  bot.onText(/^show_fwd_queue$/i, async (msg: Message) => {
     const chatId = msg.chat.id;
 
     if (!utils.isInAdminGroup(msg)) {
@@ -531,7 +529,7 @@ export const setupBotEvents = (bot) => {
     );
   });
 
-  bot.onText(/^rules$/i, async (msg) => {
+  bot.onText(/^rules$/i, async (msg: Message) => {
     const chatId = msg.chat.id;
 
     const rulesContent = fs.readFileSync("rules.txt", "utf8");
@@ -539,7 +537,7 @@ export const setupBotEvents = (bot) => {
     bot.sendMessage(chatId, rulesContent);
   });
 
-  bot.onText(/^show_chats_array$/i, async (msg) => {
+  bot.onText(/^show_chats_array$/i, async (msg: Message) => {
     const chatId = msg.chat.id;
 
     if (!utils.isInAdminGroup(msg)) {

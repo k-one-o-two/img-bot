@@ -1,18 +1,21 @@
 import { getCollections } from "./db.js";
-
 import { utils } from "./utils.js";
 
-const addPhoto = async (filename, userId, userName, displayName) => {
+const addPhoto = async (
+  filename: string,
+  userId: number,
+  userName: string | undefined,
+  displayName: string | undefined,
+): Promise<number | null> => {
   const collections = await getCollections();
   const existingRecord = await collections.contest.findOne({ userId });
-  // return new Promise(async (resolve, reject) => {
   if (existingRecord) {
     // we already have this persons photo
     return null;
   }
 
   // count to add to watermark
-  const currentLength = await collections.contest.count({});
+  const currentLength = await collections.contest.countDocuments({});
   await utils.addWatermark(
     filename,
     `Best of 2025 contest: ${currentLength + 1}`,
@@ -27,7 +30,7 @@ const addPhoto = async (filename, userId, userName, displayName) => {
     votes: 0,
   });
 
-  return await collections.contest.count({});
+  return await collections.contest.countDocuments({});
 };
 
 const getContestList = async () => {
@@ -37,7 +40,10 @@ const getContestList = async () => {
   return files;
 };
 
-const recordVote = async (voterUserId, photoIndex) => {
+const recordVote = async (
+  voterUserId: number,
+  photoIndex: number,
+): Promise<string | null> => {
   const collections = await getCollections();
 
   const hasVoted = await collections.voters.findOne({ voterUserId });

@@ -7,7 +7,7 @@ import { getCollections, init } from "./db.js";
 const bot = utils.createBot();
 setupBotEvents(bot);
 
-const tick = async () => {
+const tick = async (): Promise<void> => {
   const collections = await getCollections();
 
   const messages = await collections.fwd.find({}).toArray();
@@ -56,12 +56,12 @@ const tick = async () => {
     return;
   }
 
-  const deleteRes = await collections.fwd.deleteOne({
+  await collections.fwd.deleteOne({
     messageId: message.messageId,
   });
 };
 
-const run = async () => {
+const run = async (): Promise<void> => {
   await init();
   setInterval(() => {
     tick();
