@@ -7,34 +7,32 @@ import { subMonths, format } from "date-fns";
 import { fileURLToPath } from "url";
 import path, { dirname } from "path";
 import os from "os-utils";
-import type {
-  TelegramBot,
-  Message,
-  CallbackQuery,
-} from "node-telegram-bot-api";
+import type { Bot, Context } from "node-telegram-bot-api";
 
 const CONTEST_TAG = "#contest";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-export const setupBotEvents = (bot: TelegramBot): void => {
-  bot.onText(/^contest_stat/i, async (msg: Message) => {
-    if (!utils.isInAdminGroup(msg)) {
-      return;
-    }
+export const setupBotEvents = (bot: Bot): void => {
+  // ---- text-pattern handlers (formerly `bot.onText`) ----
+
+  bot.hears(/^contest_stat/i, async (ctx: Context) => {
+    const msg = ctx.message;
+    if (!msg || !utils.isInAdminGroup(msg)) return;
 
     const chatId = msg.chat.id;
     const contestEntries = await contest.getContestList();
 
     const getUserPicture = async (id: number): Promise<string | null> => {
-      const avatar = await bot.getUserProfilePhotos(id, { limit: 1 });
+      const avatar = await ctx.api.getUserProfilePhotos({
+        user_id: id,
+        limit: 1,
+      });
       if (avatar.photos.length) {
         const firstAvatar = avatar.photos[0][0];
-
         return await utils.downloadUserPicture(firstAvatar.file_id, id);
       }
-
       return null;
     };
 
@@ -57,15 +55,19 @@ export const setupBotEvents = (bot: TelegramBot): void => {
         entry.filename.replace("/contest/", "/contest_result/"),
       );
 
-      await bot.sendPhoto(chatId, buffer, {
+      await ctx.api.sendPhoto({
+        chat_id: chatId,
+        photo: utils.bufferAsInputFile(buffer, `${entry.userId}.jpg`),
         caption: (index + 1).toString(),
       });
     }
   });
 
-  bot.onText(/^vote$/i, async (msg: Message) => {
-    const chatId = msg.chat.id;
+  bot.hears(/^vote$/i, async (ctx: Context) => {
+    const msg = ctx.message;
+    if (!msg) return;
 
+    const chatId = msg.chat.id;
     const contestEntries = await contest.getContestList();
 
     const voteOptions: { text: string; callback_data: string }[] = [];
@@ -78,116 +80,390 @@ export const setupBotEvents = (bot: TelegramBot): void => {
           callback_data: (index + 1).toString(),
         });
 
-        return bot.sendPhoto(chatId, buffer, {
+        return ctx.api.sendPhoto({
+          chat_id: chatId,
+          photo: utils.bufferAsInputFile(buffer, `vote_${index + 1}.jpg`),
           caption: (index + 1).toString(),
         });
       }),
     );
 
-    const newMessage = await bot.sendMessage(msg.chat.id, "Cast your vote!");
-    bot.editMessageReplyMarkup(
-      {
-        inline_keyboard: [voteOptions],
-      },
-      {
-        chat_id: msg.chat.id,
-        message_id: newMessage.message_id,
-      },
-    );
+    const newMessage = await ctx.api.sendMessage({
+      chat_id: chatId,
+      text: "Cast your vote!",
+    });
+    await ctx.api.editMessageReplyMarkup({
+      chat_id: chatId,
+      message_id: newMessage.message_id,
+      reply_markup: { inline_keyboard: [voteOptions] },
+    });
   });
 
-  // keyboard events
-  bot.on("callback_query", async (query: CallbackQuery) => {
+  // ---- admin approval / rejection handlers ----
+
+  bot.hears(/^ok\s?(.*)/i, async (ctx: Context) => {
+    const msg = ctx.message;
+    if (!msg || !utils.isInAdminGroup(msg)) return;
+    if (!(await utils.checkMessage(msg, ctx.api))) return;
+
+    const match = Array.isArray(ctx.match) ? ctx.match : null;
+    const comment = match?.[1];
+
+    const collections = await getCollections();
+    const original = msg.reply_to_message!;
+    const fileId = utils.getFileId(original);
+
+    await collections.fwd.insertOne({
+      chatId: msg.chat.id,
+      messageId: original.message_id,
+    });
+
+    await collections.approved.insertOne({ fileId });
+
+    const savedUser = await utils.getUserByFile(fileId);
+    await collections.queue.deleteOne({ fileId });
+
+    if (savedUser) {
+      try {
+        await collections.users.updateOne(
+          { id: savedUser.user },
+          { $inc: { approved: 1 } },
+          { upsert: true },
+        );
+        await ctx.api.sendMessage({
+          chat_id: savedUser.user,
+          text: `The photo has been approved and added to the queue. ${
+            comment ? `Comment from admins: "${comment}"` : ""
+          }`,
+          reply_parameters: { message_id: savedUser.msgId },
+        });
+      } catch (e) {
+        console.log("replying to user failed: ", e);
+      }
+    }
+  });
+
+  bot.hears(/^later\s?(.*)/i, async (ctx: Context) => {
+    const msg = ctx.message;
+    if (!msg || !utils.isInAdminGroup(msg)) return;
+    if (!(await utils.checkMessage(msg, ctx.api))) return;
+
+    const match = Array.isArray(ctx.match) ? ctx.match : null;
+    const comment = match?.[1];
+
+    const collections = await getCollections();
+    const original = msg.reply_to_message!;
+    const fileId = utils.getFileId(original);
+
+    try {
+      await collections.later.insertOne({
+        chatId: msg.chat.id,
+        messageId: original.message_id,
+      });
+    } catch (e) {
+      console.log("forward failed: ", e);
+    }
+    await collections.approved.insertOne({ fileId });
+
+    const savedUser = await utils.getUserByFile(fileId);
+    await collections.queue.deleteOne({ fileId });
+
+    if (savedUser) {
+      try {
+        await collections.users.updateOne(
+          { id: savedUser.user },
+          { $inc: { approved: 1 } },
+          { upsert: true },
+        );
+
+        await ctx.api.sendMessage({
+          chat_id: savedUser.user,
+          text: `The photo has been approved to be send next Saturday (off-topic day). ${
+            comment ? `Comment from admins: "${comment}"` : ""
+          }`,
+          reply_parameters: { message_id: savedUser.msgId },
+        });
+      } catch (e) {
+        console.log("replying to user failed: ", e);
+      }
+    }
+  });
+
+  bot.hears(/^no (.+)/i, async (ctx: Context) => {
+    const msg = ctx.message;
+    if (!msg || !utils.isInAdminGroup(msg)) return;
+    if (!(await utils.checkMessage(msg, ctx.api))) return;
+
+    const match = Array.isArray(ctx.match) ? ctx.match : null;
+    const resp = match?.[1];
+
+    const original = msg.reply_to_message!;
+    const fileId = utils.getFileId(original);
+
+    const collections = await getCollections();
+    await collections.rejected.insertOne({ fileId });
+
+    const savedUser = await utils.getUserByFile(fileId);
+    await collections.queue.deleteOne({ fileId });
+
+    if (savedUser) {
+      try {
+        await collections.users.updateOne(
+          { id: savedUser.user },
+          { $inc: { rejected: 1 } },
+          { upsert: true },
+        );
+
+        await ctx.api.sendMessage({
+          chat_id: savedUser.user,
+          text: `The photo has been rejected, reason: "${resp}"`,
+          reply_parameters: { message_id: savedUser.msgId },
+        });
+      } catch (e) {
+        console.log("replying to user failed: ", e);
+      }
+    }
+  });
+
+  bot.hears(/^forget$/i, async (ctx: Context) => {
+    const msg = ctx.message;
+    if (!msg || !utils.isInAdminGroup(msg)) return;
+    if (!(await utils.checkMessage(msg, ctx.api))) return;
+
+    const collections = await getCollections();
+    const original = msg.reply_to_message!;
+    const fileId = utils.getFileId(original);
+
+    await collections.rejected.insertOne({ fileId });
+
+    const savedUser = await utils.getUserByFile(fileId);
+    await collections.queue.deleteOne({ fileId });
+
+    if (savedUser) {
+      try {
+        await collections.users.updateOne(
+          { id: savedUser.user },
+          { $inc: { rejected: 1 } },
+          { upsert: true },
+        );
+      } catch (e) {
+        console.log("removing chat failed: ", e);
+      }
+    }
+  });
+
+  // ---- reporting / utility text commands ----
+
+  bot.hears(/^get_best_of_month$/i, async (ctx: Context) => {
+    const msg = ctx.message;
+    if (!msg) return;
+    const chatId = msg.chat.id;
+
+    const prevMonth = subMonths(new Date(), 1);
+    const client = await utils.login();
+    const bestOfTheMonth = await utils.getBestOfCurrentMonth(client);
+
+    await utils.makePostcard();
+
+    const buffer = fs.readFileSync(`./output_stamp.jpg`);
+
+    await ctx.api.sendPhoto({
+      chat_id: chatId,
+      photo: utils.bufferAsInputFile(buffer, "best_of_month.jpg"),
+      caption: `Top photo of ${format(prevMonth, "MMMM yyyy")} with ${
+        bestOfTheMonth.reactionsCnt
+      } likes`,
+    });
+  });
+
+  bot.hears(/^get_best_of_week$/i, async (ctx: Context) => {
+    const msg = ctx.message;
+    if (!msg) return;
+    const chatId = msg.chat.id;
+
+    const size = 512;
+    const client = await utils.login();
+    const imagesLength = await utils.getBestOfCurrentWeek(client);
+
+    await utils.squareImages(imagesLength, size);
+
+    for (let i = 0; i < imagesLength; i++) {
+      const filePath = path.join(__dirname, `square/output_square_${i}.jpg`);
+      if (!fs.existsSync(filePath)) {
+        console.error(`File output_square_${i}.jpg does not exist`);
+        continue;
+      }
+      const buffer = fs.readFileSync(filePath);
+      await ctx.api.sendPhoto({
+        chat_id: chatId,
+        photo: utils.bufferAsInputFile(buffer, `best_${i}.jpg`),
+      });
+    }
+  });
+
+  bot.hears(/^get_best_of_week\s(.+)$/i, async (ctx: Context) => {
+    const msg = ctx.message;
+    if (!msg) return;
+    const chatId = msg.chat.id;
+
+    const match = Array.isArray(ctx.match) ? ctx.match : null;
+    const size = match?.[1] ?? 512;
+
+    const client = await utils.login();
+    const imagesLength = await utils.getBestOfCurrentWeek(client);
+
+    await utils.squareImages(imagesLength, size);
+
+    for (let i = 0; i < imagesLength; i++) {
+      const filePath = path.join(__dirname, `square/output_square_${i}.jpg`);
+      if (!fs.existsSync(filePath)) {
+        console.error(`File output_square_${i}.jpg does not exist`);
+        continue;
+      }
+      const buffer = fs.readFileSync(filePath);
+      await ctx.api.sendPhoto({
+        chat_id: chatId,
+        photo: utils.bufferAsInputFile(buffer, `best_${i}.jpg`),
+      });
+    }
+  });
+
+  bot.hears(/^show_fwd_queue$/i, async (ctx: Context) => {
+    const msg = ctx.message;
+    if (!msg || !utils.isInAdminGroup(msg)) return;
+
+    const chatId = msg.chat.id;
+    const collections = await getCollections();
+
+    const messages = await collections.fwd.find({}).toArray();
+    const delayedMessages = await collections.later.find({}).toArray();
+
+    await ctx.api.sendMessage({
+      chat_id: chatId,
+      text: `I have ${messages.length} in my fwdQueue and ${delayedMessages.length} in my laterQueue`,
+    });
+  });
+
+  bot.hears(/^rules$/i, async (ctx: Context) => {
+    const msg = ctx.message;
+    if (!msg) return;
+    const rulesContent = fs.readFileSync("rules.txt", "utf8");
+    await ctx.api.sendMessage({ chat_id: msg.chat.id, text: rulesContent });
+  });
+
+  bot.hears(/^show_chats_array$/i, async (ctx: Context) => {
+    const msg = ctx.message;
+    if (!msg || !utils.isInAdminGroup(msg)) return;
+
+    const chatId = msg.chat.id;
+    const collections = await getCollections();
+    const messages = await collections.queue.find({}).toArray();
+
+    if (!messages.length) {
+      await ctx.api.sendMessage({
+        chat_id: chatId,
+        text: "all good, no unchecked messages",
+      });
+    }
+
+    for (const message of messages) {
+      await ctx.api.forwardMessage({
+        chat_id: chatId,
+        from_chat_id: message.user,
+        message_id: message.msgId,
+      });
+    }
+  });
+
+  // ---- callback query (vote button presses) ----
+
+  bot.on("callback_query", async (ctx: Context) => {
+    const query = ctx.callbackQuery;
+    if (!query) return;
+
     const chatId = query.from.id;
     const { data } = query;
 
     const voteError = await contest.recordVote(chatId, Number(data));
 
     if (voteError) {
-      bot.sendMessage(chatId, `There has been a mistake: ${voteError}`);
-
+      await ctx.api.sendMessage({
+        chat_id: chatId,
+        text: `There has been a mistake: ${voteError}`,
+      });
       return;
     }
 
-    bot.sendMessage(
-      chatId,
-      `Your voice has been heard, may the photo number ${data} be the winner!`,
-    );
-  });
-
-  bot.on("text", async (msg: Message) => {
-    os.cpuUsage(function (v: number) {
-      console.log(">> CPU Usage (%): " + v);
-    });
-    if (utils.isInAdminGroup(msg)) {
-      return;
-    }
-
-    const text = `User ${msg.from?.first_name || msg.from?.username} (@${msg.from?.username || msg.from?.id}) sent a message:\n${msg.text}`;
-    bot.sendMessage(settings.adminGroup, text);
-    os.cpuUsage(function (v: number) {
-      console.log("<<CPU Usage (%): " + v);
+    await ctx.api.sendMessage({
+      chat_id: chatId,
+      text: `Your voice has been heard, may the photo number ${data} be the winner!`,
     });
   });
 
-  bot.on("photo", async (msg: Message) => {
-    if (utils.isInAdminGroup(msg)) {
-      return;
-    }
+  // ---- generic message handler: routes photo / video / plain text ----
 
-    const file = await utils.getFileInfo(msg.photo!.pop()!.file_id);
-    const filename = await utils.downloadFile(
-      file.result.file_path,
-      msg.chat.id,
-      {
-        isContest: msg.caption === CONTEST_TAG,
-      },
-    );
+  bot.on("message", async (ctx: Context) => {
+    const msg = ctx.message;
+    if (!msg) return;
 
-    const chatId = msg.chat.id;
-    const name = msg.from?.first_name || msg.from?.username;
+    // photo
+    if (msg.photo) {
+      if (utils.isInAdminGroup(msg)) return;
 
-    if (msg.caption === CONTEST_TAG) {
-      // contest branch
-      const photoId = await contest.addPhoto(
-        filename,
-        chatId,
-        msg.from?.username,
-        msg.from?.first_name,
+      const file = await utils.getFileInfo(
+        msg.photo[msg.photo.length - 1].file_id,
+      );
+      const filename = await utils.downloadFile(
+        file.result.file_path,
+        msg.chat.id,
+        {
+          isContest: msg.caption === CONTEST_TAG,
+        },
       );
 
-      if (!photoId) {
-        bot.sendMessage(
+      const chatId = msg.chat.id;
+      const name = msg.from?.first_name || msg.from?.username;
+
+      if (msg.caption === CONTEST_TAG) {
+        // contest branch
+        const photoId = await contest.addPhoto(
+          filename,
           chatId,
-          `You can't add more than one photo to the current contest, sorry.`,
+          msg.from?.username,
+          msg.from?.first_name,
         );
 
-        // TODO: remove file here
-        utils.deleteFile(filename);
+        if (!photoId) {
+          await ctx.api.sendMessage({
+            chat_id: chatId,
+            text: `You can't add more than one photo to the current contest, sorry.`,
+          });
+          utils.deleteFile(filename);
+          return;
+        }
+
+        await ctx.api.sendMessage({
+          chat_id: settings.adminGroup,
+          text: `User ${name} has added photo to the contest (${photoId})`,
+        });
+
+        await ctx.api.sendMessage({
+          chat_id: chatId,
+          text: `The photo has been added to the contest list, good luck!`,
+          reply_parameters: { message_id: msg.message_id },
+        });
         return;
       }
 
-      bot.sendMessage(
-        settings.adminGroup,
-        `User ${name} has added photo to the contest (${photoId})`,
-      );
-
-      bot.sendMessage(
-        chatId,
-        `The photo has been added to the contest list, good luck!`,
-        {
-          reply_parameters: { message_id: msg.message_id },
-        },
-      );
-    } else {
       // main branch
-
-      const avatar = await bot.getUserProfilePhotos(msg.from!.id, { limit: 1 });
+      const avatar = await ctx.api.getUserProfilePhotos({
+        user_id: msg.from!.id,
+        limit: 1,
+      });
       let avatarFileName: string | null = null;
 
       if (avatar.photos.length) {
         const firstAvatar = avatar.photos[0][0];
-
         avatarFileName = await utils.downloadUserPicture(
           firstAvatar.file_id,
           msg.chat.id,
@@ -205,14 +481,18 @@ export const setupBotEvents = (bot: TelegramBot): void => {
 
       const collections = await getCollections();
 
-      bot.sendMessage(chatId, `The photo has been sent for approval`, {
+      await ctx.api.sendMessage({
+        chat_id: chatId,
+        text: `The photo has been sent for approval`,
         reply_parameters: { message_id: msg.message_id },
       });
 
       try {
         const buffer = fs.readFileSync(filename);
 
-        const newMessage = await bot.sendPhoto(settings.adminGroup, buffer, {
+        const newMessage = await ctx.api.sendPhoto({
+          chat_id: settings.adminGroup,
+          photo: utils.bufferAsInputFile(buffer, `submission_${chatId}.jpg`),
           caption: `${msg.caption || ""}\n${watermark}\n@nerdsbayPhoto`,
         });
 
@@ -241,319 +521,51 @@ export const setupBotEvents = (bot: TelegramBot): void => {
       } catch (e) {
         console.log("forward failed: ", e);
       }
-    }
-  });
-
-  bot.on("video", async (msg: Message) => {
-    if (utils.isInAdminGroup(msg)) {
       return;
     }
-    const collections = await getCollections();
 
-    const chatId = msg.chat.id;
-
-    bot.sendMessage(chatId, `The video has been sent for approval`, {
-      reply_parameters: { message_id: msg.message_id },
-    });
-
-    await collections.queue.insertOne({
-      user: chatId,
-      fileId: msg.video!.file_unique_id,
-      msgId: msg.message_id,
-    });
-
-    try {
-      bot.forwardMessage(settings.adminGroup, msg.chat.id, msg.message_id);
-    } catch (e) {
-      console.log("forward failed: ", e);
-    }
-  });
-
-  // confirm
-  bot.onText(/^ok\s?(.*)/i, async (msg: Message, match) => {
-    const comment = match?.[1]; // the captured "comment"
-
-    if (utils.isInAdminGroup(msg)) {
-      if (!(await utils.checkMessage(msg, bot))) {
-        return;
-      }
-
+    // video
+    if (msg.video) {
+      if (utils.isInAdminGroup(msg)) return;
       const collections = await getCollections();
+      const chatId = msg.chat.id;
 
-      const original = msg.reply_to_message!;
-      const fileId = utils.getFileId(original);
-
-      await collections.fwd.insertOne({
-        chatId: msg.chat.id,
-        messageId: original.message_id,
+      await ctx.api.sendMessage({
+        chat_id: chatId,
+        text: `The video has been sent for approval`,
+        reply_parameters: { message_id: msg.message_id },
       });
 
-      await collections.approved.insertOne({ fileId });
-
-      const savedUser = await utils.getUserByFile(fileId);
-      await collections.queue.deleteOne({ fileId });
-
-      if (savedUser) {
-        try {
-          await collections.users.updateOne(
-            { id: savedUser.user },
-            { $inc: { approved: 1 } },
-            { upsert: true },
-          );
-          bot.sendMessage(
-            savedUser.user,
-            `The photo has been approved and added to the queue. ${
-              comment ? `Comment from admins: "${comment}"` : ""
-            }`,
-            {
-              reply_parameters: { message_id: savedUser.msgId },
-            },
-          );
-        } catch (e) {
-          console.log("replying to user failed: ", e);
-        }
-      }
-    }
-  });
-
-  // confirm: later
-  bot.onText(/^later\s?(.*)/i, async (msg: Message, match) => {
-    const comment = match?.[1]; // the captured "comment"
-
-    if (utils.isInAdminGroup(msg)) {
-      if (!(await utils.checkMessage(msg, bot))) {
-        return;
-      }
-
-      const collections = await getCollections();
-
-      const original = msg.reply_to_message!;
-      const fileId = utils.getFileId(original);
+      await collections.queue.insertOne({
+        user: chatId,
+        fileId: msg.video.file_unique_id,
+        msgId: msg.message_id,
+      });
 
       try {
-        await collections.later.insertOne({
-          chatId: msg.chat.id,
-          messageId: original.message_id,
+        await ctx.api.forwardMessage({
+          chat_id: settings.adminGroup,
+          from_chat_id: msg.chat.id,
+          message_id: msg.message_id,
         });
       } catch (e) {
         console.log("forward failed: ", e);
       }
-      await collections.approved.insertOne({ fileId });
-
-      const savedUser = await utils.getUserByFile(fileId);
-      await collections.queue.deleteOne({ fileId });
-
-      if (savedUser) {
-        try {
-          await collections.users.updateOne(
-            { id: savedUser.user },
-            { $inc: { approved: 1 } },
-            { upsert: true },
-          );
-
-          bot.sendMessage(
-            savedUser.user,
-            `The photo has been approved to be send next Saturday (off-topic day). ${
-              comment ? `Comment from admins: "${comment}"` : ""
-            }`,
-            {
-              reply_parameters: { message_id: savedUser.msgId },
-            },
-          );
-        } catch (e) {
-          console.log("replying to user failed: ", e);
-        }
-      }
-    }
-  });
-
-  // reject
-  bot.onText(/^no (.+)/i, async (msg: Message, match) => {
-    const resp = match?.[1]; // the captured "reason"
-    if (utils.isInAdminGroup(msg)) {
-      if (!(await utils.checkMessage(msg, bot))) {
-        return;
-      }
-
-      const original = msg.reply_to_message!;
-      const fileId = utils.getFileId(original);
-
-      const collections = await getCollections();
-
-      await collections.rejected.insertOne({ fileId });
-
-      const savedUser = await utils.getUserByFile(fileId);
-      await collections.queue.deleteOne({ fileId });
-
-      if (savedUser) {
-        try {
-          await collections.users.updateOne(
-            { id: savedUser.user },
-            { $inc: { rejected: 1 } },
-            { upsert: true },
-          );
-
-          bot.sendMessage(
-            savedUser.user,
-            `The photo has been rejected, reason: "${resp}"`,
-            { reply_parameters: { message_id: savedUser.msgId } },
-          );
-        } catch (e) {
-          console.log("replying to user failed: ", e);
-        }
-      }
-    }
-  });
-
-  // reject
-  bot.onText(/^forget$/i, async (msg: Message) => {
-    if (utils.isInAdminGroup(msg)) {
-      if (!(await utils.checkMessage(msg, bot))) {
-        return;
-      }
-
-      const collections = await getCollections();
-
-      const original = msg.reply_to_message!;
-      const fileId = utils.getFileId(original);
-
-      await collections.rejected.insertOne({ fileId });
-
-      const savedUser = await utils.getUserByFile(fileId);
-      await collections.queue.deleteOne({ fileId });
-
-      if (savedUser) {
-        try {
-          await collections.users.updateOne(
-            { id: savedUser.user },
-            { $inc: { rejected: 1 } },
-            { upsert: true },
-          );
-        } catch (e) {
-          console.log("removing chat failed: ", e);
-        }
-      }
-    }
-  });
-
-  bot.onText(/^get_best_of_month$/i, async (msg: Message) => {
-    const chatId = msg.chat.id;
-
-    const prevMonth = subMonths(new Date(), 1);
-
-    const client = await utils.login();
-    const bestOfTheMonth = await utils.getBestOfCurrentMonth(client);
-
-    await utils.makePostcard();
-
-    const buffer = fs.readFileSync(`./output_stamp.jpg`);
-
-    bot.sendPhoto(chatId, buffer, {
-      caption: `Top photo of ${format(prevMonth, "MMMM yyyy")} with ${
-        bestOfTheMonth.reactionsCnt
-      } likes`,
-    });
-  });
-
-  bot.onText(/^get_best_of_week$/i, async (msg: Message) => {
-    const chatId = msg.chat.id;
-
-    const size = 512;
-
-    const client = await utils.login();
-    const imagesLength = await utils.getBestOfCurrentWeek(client);
-
-    await utils.squareImages(imagesLength, size);
-
-    const buffers: Buffer[] = [];
-    for (let i = 0; i < imagesLength; i++) {
-      if (
-        !fs.existsSync(path.join(__dirname, `square/output_square_${i}.jpg`))
-      ) {
-        console.error(`File output_square_${i}.jpg does not exist`);
-        continue;
-      }
-
-      const buffer = fs.readFileSync(
-        path.join(__dirname, `square/output_square_${i}.jpg`),
-      );
-      buffers.push(buffer);
-      bot.sendPhoto(chatId, buffer);
-    }
-  });
-
-  bot.onText(/^get_best_of_week\s(.+)$/i, async (msg: Message, match) => {
-    const chatId = msg.chat.id;
-
-    const size = match?.[1];
-
-    const client = await utils.login();
-    const imagesLength = await utils.getBestOfCurrentWeek(client);
-
-    await utils.squareImages(imagesLength, size ?? 512);
-
-    const buffers: Buffer[] = [];
-    for (let i = 0; i < imagesLength; i++) {
-      if (
-        !fs.existsSync(path.join(__dirname, `square/output_square_${i}.jpg`))
-      ) {
-        console.error(`File output_square_${i}.jpg does not exist`);
-        continue;
-      }
-
-      // TODO : createReadStream
-
-      const buffer = fs.readFileSync(
-        path.join(__dirname, `square/output_square_${i}.jpg`),
-      );
-      buffers.push(buffer);
-      bot.sendPhoto(chatId, buffer);
-    }
-  });
-
-  bot.onText(/^show_fwd_queue$/i, async (msg: Message) => {
-    const chatId = msg.chat.id;
-
-    if (!utils.isInAdminGroup(msg)) {
       return;
     }
 
-    const collections = await getCollections();
+    // plain text — forward non-admin messages to the admin group.
+    // Note: v2 `hears` terminates the middleware chain on match, so this
+    // branch only fires for text that didn't match any `hears` regex above.
+    if (msg.text) {
+      os.cpuUsage((v: number) => console.log(">> CPU Usage (%): " + v));
+      if (utils.isInAdminGroup(msg)) return;
 
-    const messages = await collections.fwd.find({}).toArray();
-    const delayedMessages = await collections.later.find({}).toArray();
-
-    bot.sendMessage(
-      chatId,
-      `I have ${messages.length} in my fwdQueue and ${delayedMessages.length} in my laterQueue`,
-    );
-  });
-
-  bot.onText(/^rules$/i, async (msg: Message) => {
-    const chatId = msg.chat.id;
-
-    const rulesContent = fs.readFileSync("rules.txt", "utf8");
-
-    bot.sendMessage(chatId, rulesContent);
-  });
-
-  bot.onText(/^show_chats_array$/i, async (msg: Message) => {
-    const chatId = msg.chat.id;
-
-    if (!utils.isInAdminGroup(msg)) {
-      return;
+      const text = `User ${msg.from?.first_name || msg.from?.username} (@${
+        msg.from?.username || msg.from?.id
+      }) sent a message:\n${msg.text}`;
+      await ctx.api.sendMessage({ chat_id: settings.adminGroup, text });
+      os.cpuUsage((v: number) => console.log("<<CPU Usage (%): " + v));
     }
-
-    const collections = await getCollections();
-
-    const messages = await collections.queue.find({}).toArray();
-
-    if (!messages.length) {
-      bot.sendMessage(chatId, "all good, no unchecked messages");
-    }
-
-    messages.forEach((message) => {
-      bot.forwardMessage(chatId, message.user, message.msgId);
-    });
   });
 };

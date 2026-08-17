@@ -7,7 +7,12 @@ import { settings } from "./settings.js";
 import { subMonths, startOfWeek, startOfMonth } from "date-fns";
 import { StoreSession } from "telegram/sessions/index.js";
 import { Api, TelegramClient } from "telegram";
-import { TelegramBot, type Message } from "node-telegram-bot-api";
+import {
+  Bot,
+  InputFile,
+  type Api as BotApi,
+  type Message,
+} from "node-telegram-bot-api";
 import input from "input";
 import { fileURLToPath } from "url";
 import path, { dirname } from "path";
@@ -225,16 +230,16 @@ const getFileId = (msg: Message): string | undefined => {
   }
 };
 
-const checkMessage = async (
-  msg: Message,
-  bot: TelegramBot,
-): Promise<boolean> => {
+const checkMessage = async (msg: Message, api: BotApi): Promise<boolean> => {
   const collections = await getCollections();
   const chatId = msg.chat.id;
   const original = msg.reply_to_message;
 
   if (!original) {
-    bot.sendMessage(chatId, "Не найдено оригинальное сообщение");
+    api.sendMessage({
+      chat_id: chatId,
+      text: "Не найдено оригинальное сообщение",
+    });
     return false;
   }
   const fileId = getFileId(original);
@@ -243,12 +248,18 @@ const checkMessage = async (
   const rejectCount = await collections.rejected.countDocuments({ fileId });
 
   if (approveCount) {
-    bot.sendMessage(chatId, "Эта фотография уже была принята");
+    api.sendMessage({
+      chat_id: chatId,
+      text: "Эта фотография уже была принята",
+    });
     return false;
   }
 
   if (rejectCount) {
-    bot.sendMessage(chatId, "Эта фотография уже была отклонена");
+    api.sendMessage({
+      chat_id: chatId,
+      text: "Эта фотография уже была отклонена",
+    });
     return false;
   }
 
@@ -666,23 +677,15 @@ const login = async (): Promise<TelegramClient> => {
   return client;
 };
 
-const createBot = (): TelegramBot => {
-  const bot = new TelegramBot(settings.token, {
-    polling: {
-      params: {
-        timeout: 30,
-        limit: 100,
-        allowed_updates: [],
-      },
-      autoStart: true,
-      interval: 300,
-    },
-  });
-  console.info("Started");
-  // bot.on("polling_error", console.log);
-
+const createBot = (): Bot => {
+  const bot = new Bot(settings.token);
+  console.info("Bot created");
   return bot;
 };
+
+/** Wrap a Buffer as an `InputFile` for the v2 Bot API. */
+const bufferAsInputFile = (buffer: Buffer, filename = "photo.jpg"): InputFile =>
+  new InputFile(buffer, { filename });
 
 const d = (colorA: Color, colorB: Color): number => {
   return (
@@ -773,4 +776,5 @@ export const utils = {
   addWatermark,
   deleteFile,
   downloadUserPicture,
+  bufferAsInputFile,
 };
