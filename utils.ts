@@ -14,13 +14,15 @@ import {
   type Message,
 } from "node-telegram-bot-api";
 import input from "input";
-import { fileURLToPath } from "url";
-import path, { dirname } from "path";
+import path from "path";
 
 const THRESHOLD = 0.2;
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// All on-disk artifacts (downloaded files, generated images, fonts, stamps,
+// assets) are stored/read relative to the project root — the same directory
+// the bot process is launched from. Using `__dirname` here would resolve to
+// `dist/` after `tsc` builds and break every path.
+const PROJECT_ROOT = process.cwd();
 
 interface Color {
   red: number;
@@ -128,7 +130,7 @@ const addWatermark = async (
   options?: AddWatermarkOptions,
 ): Promise<void> => {
   const image = (await Jimp.read(
-    path.join(__dirname, fileName),
+    path.join(PROJECT_ROOT, fileName),
   )) as JimpInstance;
   const border = 80;
   const { width, height } = image.bitmap;
@@ -159,7 +161,7 @@ const addWatermark = async (
 
   if (avatarFileName) {
     const avatar = (await Jimp.read(
-      path.join(__dirname, avatarFileName),
+      path.join(PROJECT_ROOT, avatarFileName),
     )) as JimpInstance;
 
     avatar.resize({ w: 60, h: 60 }).circle();
@@ -201,12 +203,14 @@ const addWatermark = async (
         fileName.replace("./contest/", "")) as `${string}.${string}`,
     );
   } else {
-    await target.write(path.join(__dirname, fileName) as `${string}.${string}`);
+    await target.write(
+      path.join(PROJECT_ROOT, fileName) as `${string}.${string}`,
+    );
   }
 };
 
 const deleteFile = (fileName: string): void => {
-  fs.rmSync(path.join(__dirname, fileName));
+  fs.rmSync(path.join(PROJECT_ROOT, fileName));
 };
 
 const getUserByFile = async (fileId: string | undefined) => {
@@ -434,13 +438,13 @@ const squareImages = async (
 
   return await Promise.all(
     [...Array(n).keys()].map(async (i) => {
-      if (!fs.existsSync(path.join(__dirname, `output/output_${i}.jpg`))) {
+      if (!fs.existsSync(path.join(PROJECT_ROOT, `output/output_${i}.jpg`))) {
         console.error(`File output_${i}.jpg does not exist`);
         return;
       }
 
       const image = (await Jimp.read(
-        path.join(__dirname, `output/output_${i}.jpg`),
+        path.join(PROJECT_ROOT, `output/output_${i}.jpg`),
       )) as JimpInstance;
       const { width, height } = image.bitmap;
 
@@ -467,7 +471,7 @@ const squareImages = async (
 
       return cropped.write(
         path.join(
-          __dirname,
+          PROJECT_ROOT,
           `square/output_square_${i}.jpg`,
         ) as `${string}.${string}`,
       );
@@ -515,7 +519,7 @@ const getBestOfCurrentMonth = async (
 
   const result: any = await client.invoke(new Api.messages.GetHistory(req));
 
-  let mappedMessages: (MappedMessage | null)[] = await Promise.all(
+  const mappedMessages: (MappedMessage | null)[] = await Promise.all(
     result.messages.map(async (message: any) => {
       let reactionsCnt = 0;
 
@@ -576,7 +580,7 @@ const getBestOfCurrentWeek = async (
 
   const result: any = await client.invoke(new Api.messages.GetHistory(req));
 
-  let mappedMessages: (MappedMessage | null)[] = await Promise.all(
+  const mappedMessages: (MappedMessage | null)[] = await Promise.all(
     result.messages.map(async (message: any) => {
       let reactionsCnt = 0;
 
@@ -634,7 +638,7 @@ const getBestOfCurrentWeek = async (
       await downloadPhoto(
         message.photo,
         client,
-        path.join(__dirname, `/output/output_${i}.jpg`),
+        path.join(PROJECT_ROOT, `/output/output_${i}.jpg`),
       );
     }
   }

@@ -4,15 +4,15 @@ import { utils } from "./utils.js";
 import { settings } from "./settings.js";
 import { contest } from "./contest.js";
 import { subMonths, format } from "date-fns";
-import { fileURLToPath } from "url";
-import path, { dirname } from "path";
+import path from "path";
 import os from "os-utils";
 import type { Bot, Context } from "node-telegram-bot-api";
 
 const CONTEST_TAG = "#contest";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// See `utils.ts` — on-disk artifacts live relative to the project root, not to
+// this file's location (which points into `dist/` after `tsc` builds).
+const PROJECT_ROOT = process.cwd();
 
 export const setupBotEvents = (bot: Bot): void => {
   // ---- text-pattern handlers (formerly `bot.onText`) ----
@@ -288,7 +288,7 @@ export const setupBotEvents = (bot: Bot): void => {
     await utils.squareImages(imagesLength, size);
 
     for (let i = 0; i < imagesLength; i++) {
-      const filePath = path.join(__dirname, `square/output_square_${i}.jpg`);
+      const filePath = path.join(PROJECT_ROOT, `square/output_square_${i}.jpg`);
       if (!fs.existsSync(filePath)) {
         console.error(`File output_square_${i}.jpg does not exist`);
         continue;
@@ -315,7 +315,7 @@ export const setupBotEvents = (bot: Bot): void => {
     await utils.squareImages(imagesLength, size);
 
     for (let i = 0; i < imagesLength; i++) {
-      const filePath = path.join(__dirname, `square/output_square_${i}.jpg`);
+      const filePath = path.join(PROJECT_ROOT, `square/output_square_${i}.jpg`);
       if (!fs.existsSync(filePath)) {
         console.error(`File output_square_${i}.jpg does not exist`);
         continue;

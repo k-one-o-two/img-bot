@@ -9,11 +9,13 @@ import { StoreSession } from "telegram/sessions/index.js";
 import { Api, TelegramClient } from "telegram";
 import { Bot, InputFile, } from "node-telegram-bot-api";
 import input from "input";
-import { fileURLToPath } from "url";
-import path, { dirname } from "path";
+import path from "path";
 const THRESHOLD = 0.2;
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// All on-disk artifacts (downloaded files, generated images, fonts, stamps,
+// assets) are stored/read relative to the project root — the same directory
+// the bot process is launched from. Using `__dirname` here would resolve to
+// `dist/` after `tsc` builds and break every path.
+const PROJECT_ROOT = process.cwd();
 const getFileInfo = async (file_id) => {
     const url = `https://api.telegram.org/bot${settings.token}/getFile?file_id=${file_id}`;
     const result = await fetch(url);
@@ -58,7 +60,7 @@ const isDark = (image) => {
     return brightness < 50;
 };
 const addWatermark = async (fileName, watermark, avatarFileName, options) => {
-    const image = (await Jimp.read(path.join(__dirname, fileName)));
+    const image = (await Jimp.read(path.join(PROJECT_ROOT, fileName)));
     const border = 80;
     const { width, height } = image.bitmap;
     const palette = await extractPalette(image);
@@ -79,7 +81,7 @@ const addWatermark = async (fileName, watermark, avatarFileName, options) => {
     logo.circle();
     target.composite(logo, 10, targetHeight - 70);
     if (avatarFileName) {
-        const avatar = (await Jimp.read(path.join(__dirname, avatarFileName)));
+        const avatar = (await Jimp.read(path.join(PROJECT_ROOT, avatarFileName)));
         avatar.resize({ w: 60, h: 60 }).circle();
         target.composite(avatar, 80, targetHeight - 70);
     }
@@ -107,11 +109,11 @@ const addWatermark = async (fileName, watermark, avatarFileName, options) => {
             fileName.replace("./contest/", "")));
     }
     else {
-        await target.write(path.join(__dirname, fileName));
+        await target.write(path.join(PROJECT_ROOT, fileName));
     }
 };
 const deleteFile = (fileName) => {
-    fs.rmSync(path.join(__dirname, fileName));
+    fs.rmSync(path.join(PROJECT_ROOT, fileName));
 };
 const getUserByFile = async (fileId) => {
     const collections = await getCollections();
@@ -289,11 +291,11 @@ const squareImages = async (n, size) => {
     fs.rmSync("square", { recursive: true, force: true });
     fs.mkdirSync("square", { recursive: true });
     return await Promise.all([...Array(n).keys()].map(async (i) => {
-        if (!fs.existsSync(path.join(__dirname, `output/output_${i}.jpg`))) {
+        if (!fs.existsSync(path.join(PROJECT_ROOT, `output/output_${i}.jpg`))) {
             console.error(`File output_${i}.jpg does not exist`);
             return;
         }
-        const image = (await Jimp.read(path.join(__dirname, `output/output_${i}.jpg`)));
+        const image = (await Jimp.read(path.join(PROJECT_ROOT, `output/output_${i}.jpg`)));
         const { width, height } = image.bitmap;
         const cropped = image.crop({
             x: 0,
@@ -312,7 +314,7 @@ const squareImages = async (n, size) => {
             cropped.crop({ y: 0, x: diff / 2, h: croppedHeight, w: croppedHeight });
         }
         cropped.resize({ w: Number(size) || 512, h: Number(size) || 512 }); // resize
-        return cropped.write(path.join(__dirname, `square/output_square_${i}.jpg`));
+        return cropped.write(path.join(PROJECT_ROOT, `square/output_square_${i}.jpg`));
     }));
 };
 const downloadPhoto = async (photo, client, name) => {
@@ -336,7 +338,7 @@ const getBestOfCurrentMonth = async (client) => {
         limit: 1000, // we hope it is more than one month
     };
     const result = await client.invoke(new Api.messages.GetHistory(req));
-    let mappedMessages = await Promise.all(result.messages.map(async (message) => {
+    const mappedMessages = await Promise.all(result.messages.map(async (message) => {
         let reactionsCnt = 0;
         if (message.reactions) {
             const reactions = message.reactions.results;
@@ -380,7 +382,7 @@ const getBestOfCurrentWeek = async (client) => {
         limit: 100,
     };
     const result = await client.invoke(new Api.messages.GetHistory(req));
-    let mappedMessages = await Promise.all(result.messages.map(async (message) => {
+    const mappedMessages = await Promise.all(result.messages.map(async (message) => {
         let reactionsCnt = 0;
         if (message.reactions) {
             const reactions = message.reactions.results;
@@ -427,7 +429,7 @@ const getBestOfCurrentWeek = async (client) => {
     for (let i = 0; i < length; i++) {
         const message = filteredMessages[i];
         if (message) {
-            await downloadPhoto(message.photo, client, path.join(__dirname, `/output/output_${i}.jpg`));
+            await downloadPhoto(message.photo, client, path.join(PROJECT_ROOT, `/output/output_${i}.jpg`));
         }
     }
     return length;
