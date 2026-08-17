@@ -213,6 +213,188 @@ const deleteFile = (fileName: string): void => {
   fs.rmSync(path.join(PROJECT_ROOT, fileName));
 };
 
+/**
+ * Justified row-based grid layout, ported from `react-grid-gallery`
+ * (https://github.com/benhowell/react-grid-gallery/blob/master/src/buildLayout.ts).
+ *
+ * For each row we scale every image to a common `rowHeight`, keep pushing
+ * scaled images into the row (each contributing `scaledWidth + 2*margin`) until
+ * the row overflows the container, then trim the overflow by center-cropping
+ * every image in that row proportionally to its width. The last row may be
+ * shorter than the container (no trimming needed) and is left-aligned.
+ *
+ * Because we render actual pixels rather than CSS boxes, the library's negative
+ * left margin becomes a real crop offset into the resized image.
+ */
+interface GridLayoutOptions {
+  /** Target output width in pixels. */
+  containerWidth?: number;
+  /** Fixed height of every row in pixels. */
+  rowHeight?: number;
+  /** Gutter around each tile in pixels (same left/right/top/bottom). */
+  margin?: number;
+}
+
+interface GridLayoutItem {
+  x: number;
+  y: number;
+  /** The intrinsic scaled width before cropping. */
+  scaledWidth: number;
+  /** Visible (post-crop) width — what actually lands on the canvas. */
+  viewportWidth: number;
+  /** How many pixels to skip from the left of the resized image before the crop. */
+  cropOffsetX: number;
+}
+
+interface GridLayoutResult {
+  items: GridLayoutItem[];
+  canvasWidth: number;
+  canvasHeight: number;
+}
+
+const buildJustifiedGrid = (
+  sizes: { width: number; height: number }[],
+  { containerWidth, rowHeight, margin }: Required<GridLayoutOptions>,
+): GridLayoutResult => {
+  const imgMargin = 2 * margin;
+  const items: GridLayoutItem[] = new Array(sizes.length);
+  const remaining = sizes.map((s, index) => ({ ...s, index }));
+
+  let y = 0;
+  while (remaining.length > 0) {
+    // 1. Fill a row until it overflows the container.
+    const row: { index: number; scaledWidth: number }[] = [];
+    let totalRowWidth = 0;
+    while (remaining.length > 0 && totalRowWidth < containerWidth) {
+      const item = remaining.shift()!;
+      const scaledWidth = Math.max(
+        1,
+        Math.floor(rowHeight * (item.width / item.height)),
+      );
+      row.push({ index: item.index, scaledWidth });
+      totalRowWidth += scaledWidth + imgMargin;
+    }
+
+    // 2. Compute per-tile crop distributed proportionally to width.
+    const cuts = new Array<number>(row.length).fill(0);
+    const protrudingWidth = totalRowWidth - containerWidth;
+    if (row.length > 0 && protrudingWidth > 0) {
+      let cutSum = 0;
+      for (let i = 0; i < row.length; i++) {
+        const cut = Math.floor(
+          (row[i].scaledWidth / totalRowWidth) * protrudingWidth,
+        );
+        cuts[i] = cut;
+        cutSum += cut;
+      }
+      // Distribute the flooring remainder one pixel at a time.
+      let stillToCut = protrudingWidth - cutSum;
+      for (let i = 0; stillToCut > 0; i = (i + 1) % row.length) {
+        cuts[i]++;
+        stillToCut--;
+      }
+    }
+
+    // 3. Place each tile on the canvas.
+    let x = 0;
+    for (let i = 0; i < row.length; i++) {
+      const cut = cuts[i];
+      const scaledWidth = row[i].scaledWidth;
+      const viewportWidth = scaledWidth - cut;
+      const cropOffsetX = Math.floor(cut / 2);
+      items[row[i].index] = {
+        x: x + margin,
+        y: y + margin,
+        scaledWidth,
+        viewportWidth,
+        cropOffsetX,
+      };
+      x += viewportWidth + imgMargin;
+    }
+
+    y += rowHeight + imgMargin;
+  }
+
+  return {
+    items,
+    canvasWidth: containerWidth,
+    canvasHeight: y,
+  };
+};
+
+/**
+ * Stitch the given images into a single JPEG at `outputPath` using a Google
+ * Photos-style justified grid (see `buildJustifiedGrid`). Defaults produce a
+ * 1280-wide image with ~400px rows and 4px gutters — comfortable for the
+ * admin-group preview.
+ *
+ * Paths are resolved against `PROJECT_ROOT`, matching the rest of the utils.
+ */
+const combineImagesGrid = async (
+  filePaths: string[],
+  outputPath: string,
+  options?: GridLayoutOptions,
+): Promise<void> => {
+  if (!filePaths.length) {
+    throw new Error("combineImagesGrid: no input files");
+  }
+
+  const opts: Required<GridLayoutOptions> = {
+    containerWidth: options?.containerWidth ?? 1280,
+    rowHeight: options?.rowHeight ?? 400,
+    margin: options?.margin ?? 4,
+  };
+
+  const images = (await Promise.all(
+    filePaths.map((fp) => Jimp.read(path.join(PROJECT_ROOT, fp))),
+  )) as JimpInstance[];
+
+  // Vote on the overall theme before any mutation (resize/crop) happens.
+  // If half or more of the source photos come back dark, tint the grid
+  // gutters black so the composite reads as a dark image — which
+  // `addWatermark` will then pick up via its own brightness check and
+  // switch to the white-on-black text/border variant.
+  const darkVotes = images.reduce((n, img) => n + (isDark(img) ? 1 : 0), 0);
+  const isDarkTheme = darkVotes * 2 >= images.length;
+  const backgroundColor = isDarkTheme ? 0x000000ff : 0xffffffff;
+
+  const layout = buildJustifiedGrid(
+    images.map((img) => ({
+      width: img.bitmap.width,
+      height: img.bitmap.height,
+    })),
+    opts,
+  );
+
+  const canvas = new Jimp({
+    width: layout.canvasWidth,
+    height: layout.canvasHeight,
+    color: backgroundColor,
+  }) as JimpInstance;
+
+  for (let i = 0; i < images.length; i++) {
+    const item = layout.items[i];
+    // Resize preserving the layout's intrinsic width, then center-crop.
+    const tile = images[i].resize({
+      w: item.scaledWidth,
+      h: opts.rowHeight,
+    }) as JimpInstance;
+    if (item.viewportWidth < item.scaledWidth) {
+      tile.crop({
+        x: item.cropOffsetX,
+        y: 0,
+        w: item.viewportWidth,
+        h: opts.rowHeight,
+      });
+    }
+    canvas.composite(tile, item.x, item.y);
+  }
+
+  await canvas.write(
+    path.join(PROJECT_ROOT, outputPath) as `${string}.${string}`,
+  );
+};
+
 const getUserByFile = async (fileId: string | undefined) => {
   const collections = await getCollections();
   const item = await collections.queue.findOne({ fileId });
@@ -781,4 +963,5 @@ export const utils = {
   deleteFile,
   downloadUserPicture,
   bufferAsInputFile,
+  combineImagesGrid,
 };

@@ -10,6 +10,14 @@ const CONTEST_TAG = "#contest";
 // See `utils.ts` — on-disk artifacts live relative to the project root, not to
 // this file's location (which points into `dist/` after `tsc` builds).
 const PROJECT_ROOT = process.cwd();
+// ---- media group buffering --------------------------------------------------
+//
+// Telegram delivers each photo of an album as its own `Message` sharing a
+// `media_group_id`. We buffer those in-memory and flush after a short quiet
+// period so we can download all photos, combine them into a single image, add
+// one watermark, and forward the album to admins as a single submission.
+const MEDIA_GROUP_DEBOUNCE_MS = 2000;
+const mediaGroups = new Map();
 export const setupBotEvents = (bot) => {
     // ---- text-pattern handlers (formerly `bot.onText`) ----
     bot.hears(/^contest_stat/i, async (ctx) => {
@@ -316,6 +324,121 @@ export const setupBotEvents = (bot) => {
             text: `Your voice has been heard, may the photo number ${data} be the winner!`,
         });
     });
+    // ---- shared photo processing pipeline (single photo or media group) ----
+    const handlePhotoSubmission = async (submission) => {
+        // 1. Download each source photo.
+        const filenames = [];
+        for (const fileId of submission.fileIds) {
+            const file = await utils.getFileInfo(fileId);
+            const filename = await utils.downloadFile(file.result.file_path, submission.chatId, { isContest: submission.isContest });
+            filenames.push(filename);
+        }
+        // 2. If it's an album, stitch the pieces into one wide image.
+        let filename;
+        if (filenames.length === 1) {
+            filename = filenames[0];
+        }
+        else {
+            const dir = submission.isContest ? "contest" : "output";
+            filename = `./${dir}/group_${submission.chatId}_${submission.replyToMsgId}.jpg`;
+            await utils.combineImagesGrid(filenames, filename);
+        }
+        const chatId = submission.chatId;
+        const name = submission.from.first_name || submission.from.username;
+        // 3a. Contest branch.
+        if (submission.isContest) {
+            const photoId = await contest.addPhoto(filename, chatId, submission.from.username, submission.from.first_name);
+            if (!photoId) {
+                await bot.api.sendMessage({
+                    chat_id: chatId,
+                    text: `You can't add more than one photo to the current contest, sorry.`,
+                });
+                utils.deleteFile(filename);
+                return;
+            }
+            await bot.api.sendMessage({
+                chat_id: settings.adminGroup,
+                text: `User ${name} has added photo to the contest (${photoId})`,
+            });
+            await bot.api.sendMessage({
+                chat_id: chatId,
+                text: `The photo has been added to the contest list, good luck!`,
+                reply_parameters: { message_id: submission.replyToMsgId },
+            });
+            return;
+        }
+        // 3b. Main branch: watermark and forward to admins for approval.
+        const avatar = await bot.api.getUserProfilePhotos({
+            user_id: submission.from.id,
+            limit: 1,
+        });
+        let avatarFileName = null;
+        if (avatar.photos.length) {
+            const firstAvatar = avatar.photos[0][0];
+            avatarFileName = await utils.downloadUserPicture(firstAvatar.file_id, submission.chatId);
+        }
+        const strippedName = /[a-zA-Z\s0-9а-яА-Я\-_!?:#$%^*\\(\\)]+/
+            .exec(name || "")[0]
+            .trim();
+        const watermark = name
+            ? `By ${strippedName} for Postikortti Suomesta`
+            : "Postikortti Suomesta";
+        await utils.addWatermark(filename, watermark, avatarFileName);
+        const collections = await getCollections();
+        await bot.api.sendMessage({
+            chat_id: chatId,
+            text: `The photo has been sent for approval`,
+            reply_parameters: { message_id: submission.replyToMsgId },
+        });
+        try {
+            const buffer = fs.readFileSync(filename);
+            const newMessage = await bot.api.sendPhoto({
+                chat_id: settings.adminGroup,
+                photo: utils.bufferAsInputFile(buffer, `submission_${chatId}.jpg`),
+                caption: `${submission.caption || ""}\n${watermark}\n@nerdsbayPhoto`,
+            });
+            await collections.queue.insertOne({
+                user: chatId,
+                fileId: newMessage.photo[0].file_unique_id,
+                msgId: submission.replyToMsgId,
+            });
+            const recordedUser = await collections.users.findOne({ id: chatId });
+            if (!recordedUser) {
+                await collections.users.insertOne({
+                    id: chatId,
+                    handle: submission.from.username,
+                    photos: 1,
+                    approved: 0,
+                    rejected: 0,
+                });
+            }
+            else {
+                await collections.users.updateOne({ id: chatId }, { $inc: { photos: 1 } });
+            }
+        }
+        catch (e) {
+            console.log("forward failed: ", e);
+        }
+    };
+    const flushMediaGroup = async (groupId) => {
+        const group = mediaGroups.get(groupId);
+        if (!group)
+            return;
+        mediaGroups.delete(groupId);
+        try {
+            await handlePhotoSubmission({
+                chatId: group.chatId,
+                from: group.from,
+                replyToMsgId: group.firstMsgId,
+                caption: group.caption,
+                isContest: group.caption === CONTEST_TAG,
+                fileIds: group.fileIds,
+            });
+        }
+        catch (err) {
+            console.error(`media group ${groupId} flush failed:`, err);
+        }
+    };
     // ---- generic message handler: routes photo / video / plain text ----
     bot.on("message", async (ctx) => {
         const msg = ctx.message;
@@ -325,86 +448,41 @@ export const setupBotEvents = (bot) => {
         if (msg.photo) {
             if (utils.isInAdminGroup(msg))
                 return;
-            const file = await utils.getFileInfo(msg.photo[msg.photo.length - 1].file_id);
-            const filename = await utils.downloadFile(file.result.file_path, msg.chat.id, {
-                isContest: msg.caption === CONTEST_TAG,
-            });
-            const chatId = msg.chat.id;
-            const name = msg.from?.first_name || msg.from?.username;
-            if (msg.caption === CONTEST_TAG) {
-                // contest branch
-                const photoId = await contest.addPhoto(filename, chatId, msg.from?.username, msg.from?.first_name);
-                if (!photoId) {
-                    await ctx.api.sendMessage({
-                        chat_id: chatId,
-                        text: `You can't add more than one photo to the current contest, sorry.`,
-                    });
-                    utils.deleteFile(filename);
-                    return;
-                }
-                await ctx.api.sendMessage({
-                    chat_id: settings.adminGroup,
-                    text: `User ${name} has added photo to the contest (${photoId})`,
-                });
-                await ctx.api.sendMessage({
-                    chat_id: chatId,
-                    text: `The photo has been added to the contest list, good luck!`,
-                    reply_parameters: { message_id: msg.message_id },
-                });
+            if (!msg.from)
                 return;
-            }
-            // main branch
-            const avatar = await ctx.api.getUserProfilePhotos({
-                user_id: msg.from.id,
-                limit: 1,
-            });
-            let avatarFileName = null;
-            if (avatar.photos.length) {
-                const firstAvatar = avatar.photos[0][0];
-                avatarFileName = await utils.downloadUserPicture(firstAvatar.file_id, msg.chat.id);
-            }
-            const strippedName = /[a-zA-Z\s0-9а-яА-Я\-_!?:#$%^*\\(\\)]+/
-                .exec(name || "")[0]
-                .trim();
-            const watermark = name
-                ? `By ${strippedName} for Postikortti Suomesta`
-                : "Postikortti Suomesta";
-            await utils.addWatermark(filename, watermark, avatarFileName);
-            const collections = await getCollections();
-            await ctx.api.sendMessage({
-                chat_id: chatId,
-                text: `The photo has been sent for approval`,
-                reply_parameters: { message_id: msg.message_id },
-            });
-            try {
-                const buffer = fs.readFileSync(filename);
-                const newMessage = await ctx.api.sendPhoto({
-                    chat_id: settings.adminGroup,
-                    photo: utils.bufferAsInputFile(buffer, `submission_${chatId}.jpg`),
-                    caption: `${msg.caption || ""}\n${watermark}\n@nerdsbayPhoto`,
-                });
-                await collections.queue.insertOne({
-                    user: chatId,
-                    fileId: newMessage.photo[0].file_unique_id,
-                    msgId: msg.message_id,
-                });
-                const recordedUser = await collections.users.findOne({ id: chatId });
-                if (!recordedUser) {
-                    await collections.users.insertOne({
-                        id: chatId,
-                        handle: msg.from?.username,
-                        photos: 1,
-                        approved: 0,
-                        rejected: 0,
-                    });
+            const largest = msg.photo[msg.photo.length - 1];
+            // Album: buffer by media_group_id and debounce a flush.
+            if (msg.media_group_id) {
+                const groupId = msg.media_group_id;
+                const existing = mediaGroups.get(groupId);
+                if (existing) {
+                    existing.fileIds.push(largest.file_id);
+                    if (msg.caption && !existing.caption)
+                        existing.caption = msg.caption;
+                    clearTimeout(existing.timer);
+                    existing.timer = setTimeout(() => flushMediaGroup(groupId), MEDIA_GROUP_DEBOUNCE_MS);
                 }
                 else {
-                    await collections.users.updateOne({ id: chatId }, { $inc: { photos: 1 } });
+                    mediaGroups.set(groupId, {
+                        chatId: msg.chat.id,
+                        from: msg.from,
+                        firstMsgId: msg.message_id,
+                        caption: msg.caption,
+                        fileIds: [largest.file_id],
+                        timer: setTimeout(() => flushMediaGroup(groupId), MEDIA_GROUP_DEBOUNCE_MS),
+                    });
                 }
+                return;
             }
-            catch (e) {
-                console.log("forward failed: ", e);
-            }
+            // Single photo.
+            await handlePhotoSubmission({
+                chatId: msg.chat.id,
+                from: msg.from,
+                replyToMsgId: msg.message_id,
+                caption: msg.caption,
+                isContest: msg.caption === CONTEST_TAG,
+                fileIds: [largest.file_id],
+            });
             return;
         }
         // video
