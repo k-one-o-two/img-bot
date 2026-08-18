@@ -115,67 +115,12 @@ const addWatermark = async (fileName, watermark, avatarFileName, options) => {
 const deleteFile = (fileName) => {
     fs.rmSync(path.join(PROJECT_ROOT, fileName));
 };
-const buildJustifiedGrid = (sizes, { containerWidth, rowHeight, margin }) => {
-    const imgMargin = 2 * margin;
-    const items = new Array(sizes.length);
-    const remaining = sizes.map((s, index) => ({ ...s, index }));
-    let y = 0;
-    while (remaining.length > 0) {
-        // 1. Fill a row until it overflows the container.
-        const row = [];
-        let totalRowWidth = 0;
-        while (remaining.length > 0 && totalRowWidth < containerWidth) {
-            const item = remaining.shift();
-            const scaledWidth = Math.max(1, Math.floor(rowHeight * (item.width / item.height)));
-            row.push({ index: item.index, scaledWidth });
-            totalRowWidth += scaledWidth + imgMargin;
-        }
-        // 2. Compute per-tile crop distributed proportionally to width.
-        const cuts = new Array(row.length).fill(0);
-        const protrudingWidth = totalRowWidth - containerWidth;
-        if (row.length > 0 && protrudingWidth > 0) {
-            let cutSum = 0;
-            for (let i = 0; i < row.length; i++) {
-                const cut = Math.floor((row[i].scaledWidth / totalRowWidth) * protrudingWidth);
-                cuts[i] = cut;
-                cutSum += cut;
-            }
-            // Distribute the flooring remainder one pixel at a time.
-            let stillToCut = protrudingWidth - cutSum;
-            for (let i = 0; stillToCut > 0; i = (i + 1) % row.length) {
-                cuts[i]++;
-                stillToCut--;
-            }
-        }
-        // 3. Place each tile on the canvas.
-        let x = 0;
-        for (let i = 0; i < row.length; i++) {
-            const cut = cuts[i];
-            const scaledWidth = row[i].scaledWidth;
-            const viewportWidth = scaledWidth - cut;
-            const cropOffsetX = Math.floor(cut / 2);
-            items[row[i].index] = {
-                x: x + margin,
-                y: y + margin,
-                scaledWidth,
-                viewportWidth,
-                cropOffsetX,
-            };
-            x += viewportWidth + imgMargin;
-        }
-        y += rowHeight + imgMargin;
-    }
-    return {
-        items,
-        canvasWidth: containerWidth,
-        canvasHeight: y,
-    };
-};
+/** Column count that produces a balanced-looking grid for `n` items. */
+const columnsFor = (n) => n <= 3 ? n : Math.ceil(Math.sqrt(n));
 /**
- * Stitch the given images into a single JPEG at `outputPath` using a Google
- * Photos-style justified grid (see `buildJustifiedGrid`). Defaults produce a
- * 1280-wide image with ~400px rows and 4px gutters — comfortable for the
- * admin-group preview.
+ * Stitch the given images into a single JPEG at `outputPath` using a uniform
+ * grid. Defaults produce a 1280-wide image with ~400px rows and 4px gutters —
+ * comfortable for the admin-group preview.
  *
  * Paths are resolved against `PROJECT_ROOT`, matching the rest of the utils.
  */
@@ -197,31 +142,36 @@ const combineImagesGrid = async (filePaths, outputPath, options) => {
     const darkVotes = images.reduce((n, img) => n + (isDark(img) ? 1 : 0), 0);
     const isDarkTheme = darkVotes * 2 >= images.length;
     const backgroundColor = isDarkTheme ? 0x000000ff : 0xffffffff;
-    const layout = buildJustifiedGrid(images.map((img) => ({
-        width: img.bitmap.width,
-        height: img.bitmap.height,
-    })), opts);
+    const n = images.length;
+    const cols = columnsFor(n);
+    const rows = Math.ceil(n / cols);
+    const cellWidth = Math.floor((opts.containerWidth - (cols + 1) * opts.margin) / cols);
+    const cellHeight = opts.rowHeight;
+    const canvasWidth = opts.containerWidth;
+    const canvasHeight = rows * cellHeight + (rows + 1) * opts.margin;
     const canvas = new Jimp({
-        width: layout.canvasWidth,
-        height: layout.canvasHeight,
+        width: canvasWidth,
+        height: canvasHeight,
         color: backgroundColor,
     });
     for (let i = 0; i < images.length; i++) {
-        const item = layout.items[i];
-        // Resize preserving the layout's intrinsic width, then center-crop.
-        const tile = images[i].resize({
-            w: item.scaledWidth,
-            h: opts.rowHeight,
-        });
-        if (item.viewportWidth < item.scaledWidth) {
-            tile.crop({
-                x: item.cropOffsetX,
-                y: 0,
-                w: item.viewportWidth,
-                h: opts.rowHeight,
-            });
-        }
-        canvas.composite(tile, item.x, item.y);
+        const src = images[i];
+        const srcW = src.bitmap.width;
+        const srcH = src.bitmap.height;
+        // Cover fit: scale so both dimensions match or exceed the cell, then
+        // center-crop to the exact cell size.
+        const scale = Math.max(cellWidth / srcW, cellHeight / srcH);
+        const scaledW = Math.max(cellWidth, Math.round(srcW * scale));
+        const scaledH = Math.max(cellHeight, Math.round(srcH * scale));
+        const tile = src.resize({ w: scaledW, h: scaledH });
+        const cropX = Math.floor((scaledW - cellWidth) / 2);
+        const cropY = Math.floor((scaledH - cellHeight) / 2);
+        tile.crop({ x: cropX, y: cropY, w: cellWidth, h: cellHeight });
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const x = opts.margin + col * (cellWidth + opts.margin);
+        const y = opts.margin + row * (cellHeight + opts.margin);
+        canvas.composite(tile, x, y);
     }
     await canvas.write(path.join(PROJECT_ROOT, outputPath));
 };
