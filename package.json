@@ -28,10 +28,12 @@
     "dotenv": "^16.4.5",
     "input": "^1.0.1",
     "jimp": "^1.6.0",
+    "maxrects-packer": "^2.7.3",
     "mongodb": "^6.19.0",
     "node-telegram-bot-api": "^2.0.0",
     "nodemon": "^3.1.4",
     "os-utils": "^0.0.14",
+    "quantize": "^1.0.2",
     "telegram": "^2.26.16"
   },
   "devDependencies": {

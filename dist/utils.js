@@ -10,7 +10,7 @@ import { Api, TelegramClient } from "telegram";
 import { Bot, InputFile, } from "node-telegram-bot-api";
 import input from "input";
 import path from "path";
-const THRESHOLD = 0.2;
+import quantize from "quantize";
 // All on-disk artifacts (downloaded files, generated images, fonts, stamps,
 // assets) are stored/read relative to the project root — the same directory
 // the bot process is launched from. Using `__dirname` here would resolve to
@@ -93,14 +93,11 @@ const addWatermark = async (fileName, watermark, avatarFileName, options) => {
         y: targetHeight - 48,
         text: watermark,
     });
-    palette
-        .sort((a, b) => rgbaToInt(a.avg.red, a.avg.green, a.avg.blue, 255) -
-        rgbaToInt(b.avg.red, b.avg.green, b.avg.blue, 255))
-        .forEach((color, index) => {
+    palette.forEach((color, index) => {
         const square = new Jimp({
             width: 40,
             height: 80,
-            color: rgbaToInt(color.avg.red, color.avg.green, color.avg.blue, 255),
+            color: rgbaToInt(color[0], color[1], color[2], 255),
         });
         target.composite(square, width - index * 40, options && options.contestTarget ? height - 80 : height);
     });
@@ -118,9 +115,9 @@ const deleteFile = (fileName) => {
 /** Column count that produces a balanced-looking grid for `n` items. */
 const columnsFor = (n) => n <= 3 ? n : Math.ceil(Math.sqrt(n));
 /**
- * Stitch the given images into a single JPEG at `outputPath` using a uniform
- * grid. Defaults produce a 1280-wide image with ~400px rows and 4px gutters —
- * comfortable for the admin-group preview.
+ * Stitch the given images into a single JPEG at `outputPath`. Defaults produce
+ * a 1280-wide canvas with 4-pixel gutters; the final height depends on the
+ * album's aspect ratios.
  *
  * Paths are resolved against `PROJECT_ROOT`, matching the rest of the utils.
  */
@@ -128,50 +125,74 @@ const combineImagesGrid = async (filePaths, outputPath, options) => {
     if (!filePaths.length) {
         throw new Error("combineImagesGrid: no input files");
     }
-    const opts = {
-        containerWidth: options?.containerWidth ?? 1280,
-        rowHeight: options?.rowHeight ?? 400,
-        margin: options?.margin ?? 4,
-    };
+    const containerWidth = options?.containerWidth ?? 2048;
+    const margin = options?.margin ?? 4;
+    const maxRowHeightRatio = options?.maxRowHeightRatio ?? 1.5;
     const images = (await Promise.all(filePaths.map((fp) => Jimp.read(path.join(PROJECT_ROOT, fp)))));
-    // Vote on the overall theme before any mutation (resize/crop) happens.
-    // If half or more of the source photos come back dark, tint the grid
-    // gutters black so the composite reads as a dark image — which
-    // `addWatermark` will then pick up via its own brightness check and
-    // switch to the white-on-black text/border variant.
+    // Vote on the overall theme before any mutation happens. If half or more of
+    // the source photos come back dark, tint the background black so the
+    // composite reads as a dark image — `addWatermark` will then pick that up
+    // via its own brightness check and switch to the white-on-black variant.
     const darkVotes = images.reduce((n, img) => n + (isDark(img) ? 1 : 0), 0);
     const isDarkTheme = darkVotes * 2 >= images.length;
-    const backgroundColor = isDarkTheme ? 0x000000ff : 0xffffffff;
+    const backgroundColor = isDarkTheme ? 0x000000ff : 0xcececeff;
+    // Split into rows of `cols` (last row may be shorter).
     const n = images.length;
     const cols = columnsFor(n);
-    const rows = Math.ceil(n / cols);
-    const cellWidth = Math.floor((opts.containerWidth - (cols + 1) * opts.margin) / cols);
-    const cellHeight = opts.rowHeight;
-    const canvasWidth = opts.containerWidth;
-    const canvasHeight = rows * cellHeight + (rows + 1) * opts.margin;
+    const rows = [];
+    for (let i = 0; i < n; i += cols) {
+        rows.push(images.slice(i, i + cols));
+    }
+    const outerSpan = containerWidth - 2 * margin;
+    const maxRowHeight = (containerWidth / cols) * maxRowHeightRatio;
+    // Compute per-row height + tile widths.
+    const layouts = [];
+    let previousRowHeight = 0;
+    for (const row of rows) {
+        const k = row.length;
+        const aspects = row.map((img) => img.bitmap.width / img.bitmap.height);
+        const sumAspects = aspects.reduce((s, a) => s + a, 0);
+        let height;
+        if (k === cols) {
+            // Full row: justify to container width, capping at maxRowHeight.
+            const availWidth = containerWidth - (k + 1) * margin;
+            height = Math.min(availWidth / sumAspects, maxRowHeight);
+            previousRowHeight = height;
+        }
+        else {
+            // Partial last row: reuse the previous row's height so heights match.
+            height =
+                previousRowHeight || Math.min(maxRowHeight, containerWidth / cols);
+        }
+        const widths = aspects.map((a) => a * height);
+        const rowContentWidth = widths.reduce((s, w) => s + w, 0) + (k - 1) * margin;
+        // Center each row inside the outer span. A justified full row has
+        // rowContentWidth === outerSpan, so this reduces to startX === margin.
+        const startX = margin + Math.max(0, (outerSpan - rowContentWidth) / 2);
+        layouts.push({ height, widths, startX });
+    }
+    const totalHeight = margin + layouts.reduce((s, l) => s + l.height + margin, 0);
     const canvas = new Jimp({
-        width: canvasWidth,
-        height: canvasHeight,
+        width: containerWidth,
+        height: Math.round(totalHeight),
         color: backgroundColor,
     });
-    for (let i = 0; i < images.length; i++) {
-        const src = images[i];
-        const srcW = src.bitmap.width;
-        const srcH = src.bitmap.height;
-        // Cover fit: scale so both dimensions match or exceed the cell, then
-        // center-crop to the exact cell size.
-        const scale = Math.max(cellWidth / srcW, cellHeight / srcH);
-        const scaledW = Math.max(cellWidth, Math.round(srcW * scale));
-        const scaledH = Math.max(cellHeight, Math.round(srcH * scale));
-        const tile = src.resize({ w: scaledW, h: scaledH });
-        const cropX = Math.floor((scaledW - cellWidth) / 2);
-        const cropY = Math.floor((scaledH - cellHeight) / 2);
-        tile.crop({ x: cropX, y: cropY, w: cellWidth, h: cellHeight });
-        const col = i % cols;
-        const row = Math.floor(i / cols);
-        const x = opts.margin + col * (cellWidth + opts.margin);
-        const y = opts.margin + row * (cellHeight + opts.margin);
-        canvas.composite(tile, x, y);
+    let y = margin;
+    let imgIndex = 0;
+    for (const layout of layouts) {
+        let x = layout.startX;
+        const h = Math.round(layout.height);
+        for (const w of layout.widths) {
+            const wRounded = Math.round(w);
+            const tile = images[imgIndex].resize({
+                w: wRounded,
+                h,
+            });
+            canvas.composite(tile, Math.round(x), Math.round(y));
+            x += w + margin;
+            imgIndex++;
+        }
+        y += layout.height + margin;
     }
     await canvas.write(path.join(PROJECT_ROOT, outputPath));
 };
@@ -536,49 +557,18 @@ const middle = (colorA, colorB) => {
         blue: Math.round((colorA.blue + colorB.blue) / 2),
     };
 };
-const getClosest = (palette, currentColor) => {
-    let closest = palette[0];
-    let closestDistance = d(closest.avg, currentColor);
-    for (let i = 1; i < palette.length; i++) {
-        const distance = d(palette[i].avg, currentColor);
-        if (distance < closestDistance) {
-            closest = palette[i];
-            closestDistance = distance;
-        }
-    }
-    return { closest, distance: closestDistance };
-};
 const extractPalette = async (image) => {
-    const palette = [];
+    const pixelArray = [];
     image.scan((_x, _y, idx) => {
-        const currentColor = {
-            red: image.bitmap.data[idx],
-            green: image.bitmap.data[idx + 1],
-            blue: image.bitmap.data[idx + 2],
-        };
-        if (!palette.length) {
-            palette.push({
-                avg: currentColor,
-                count: 1,
-            });
-        }
-        else {
-            const closestPaletteAverage = getClosest(palette, currentColor);
-            if (closestPaletteAverage.distance < THRESHOLD) {
-                closestPaletteAverage.closest.count++;
-                // closestPaletteAverage.closest.avg = middle(
-                //   closestPaletteAverage.closest.avg,
-                //   currentColor,
-                // );
-            }
-            else {
-                palette.push({
-                    avg: currentColor,
-                    count: 1,
-                });
-            }
-        }
+        pixelArray.push([
+            image.bitmap.data[idx],
+            image.bitmap.data[idx + 1],
+            image.bitmap.data[idx + 2],
+        ]);
     });
+    const maximumColorCount = 10;
+    const colorMap = quantize(pixelArray, maximumColorCount);
+    const palette = colorMap.palette();
     return palette;
 };
 export const utils = {
