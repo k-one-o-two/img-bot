@@ -234,9 +234,20 @@ interface GridLayoutOptions {
   maxRowHeightRatio?: number;
 }
 
-/** Column count that produces a balanced-looking grid for `n` items. */
-const columnsFor = (n: number): number =>
-  n <= 3 ? n : Math.ceil(Math.sqrt(n));
+/**
+ * Column count that produces a balanced-looking grid for `n` items.
+ *
+ * When the album's average aspect ratio (w/h) is wider than
+ * `WIDE_ASPECT_THRESHOLD`, we collapse to a single column and stack the photos
+ * vertically. Otherwise 1-3 photos share one row and larger albums fall back
+ * to a square-ish `ceil(sqrt(n))` grid.
+ */
+const WIDE_ASPECT_THRESHOLD = 2;
+
+const columnsFor = (n: number, avgAspect: number): number => {
+  if (avgAspect >= WIDE_ASPECT_THRESHOLD) return 1;
+  return n <= 3 ? n : Math.ceil(Math.sqrt(n));
+};
 
 interface RowLayout {
   height: number;
@@ -276,9 +287,12 @@ const combineImagesGrid = async (
   const isDarkTheme = darkVotes * 2 >= images.length;
   const backgroundColor = isDarkTheme ? 0x000000ff : 0xcececeff;
 
-  // Split into rows of `cols` (last row may be shorter).
+  // Split into rows of `cols` (last row may be shorter). Wide panoramas force
+  // a single column so they don't end up as thin horizontal strips.
   const n = images.length;
-  const cols = columnsFor(n);
+  const avgAspect =
+    images.reduce((s, img) => s + img.bitmap.width / img.bitmap.height, 0) / n;
+  const cols = columnsFor(n, avgAspect);
   const rows: JimpInstance[][] = [];
   for (let i = 0; i < n; i += cols) {
     rows.push(images.slice(i, i + cols));
